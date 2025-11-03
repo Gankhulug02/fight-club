@@ -8,21 +8,9 @@ interface Player {
   id: number;
   name: string;
   team_id: number;
-  role?: string;
+  role: string;
   avatar: string;
-  kills: number;
-  assists: number;
-  deaths: number;
-  matches_played: number;
-  wins: number;
-  losses: number;
   created_at?: string;
-  updated_at?: string;
-}
-
-interface PlayerWithTeam extends Player {
-  teamName: string;
-  teamLogo: string;
 }
 
 interface Team {
@@ -31,146 +19,248 @@ interface Team {
   logo: string;
 }
 
+interface PlayerStats {
+  player: Player;
+  team: Team | null;
+  kills: number;
+  assists: number;
+  deaths: number;
+  kd_ratio: number;
+  maps_played: number;
+}
+
+interface PlayerFormData {
+  name: string;
+  team_id: string;
+  role: string;
+  avatar: string;
+}
+
 export default function AdminPlayersPage() {
-  const [players, setPlayers] = useState<PlayerWithTeam[]>([]);
+  const [playerStats, setPlayerStats] = useState<PlayerStats[]>([]);
   const [teams, setTeams] = useState<Team[]>([]);
   const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [selectedTeamFilter, setSelectedTeamFilter] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [editingPlayer, setEditingPlayer] = useState<Player | null>(null);
   const [showAddForm, setShowAddForm] = useState(false);
-
-  // Form state
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<PlayerFormData>({
     name: "",
     team_id: "",
     role: "",
-    avatar: "👤",
+    avatar: "",
   });
 
-  // Fetch teams
-  const fetchTeams = async () => {
-    const { data, error } = await supabase
-      .from("teams")
-      .select("*")
-      .order("name");
-
-    if (error) {
-      console.error("Error fetching teams:", error);
-      return;
-    }
-
-    setTeams(data || []);
-  };
-
-  // Fetch players with team info
-  const fetchPlayers = async () => {
-    setLoading(true);
-
-    // Fetch all players (stats are stored in the player record now)
-    const { data: playersData, error: playersError } = await supabase
-      .from("players")
-      .select("*")
-      .order("name");
-
-    if (playersError) {
-      console.error("Error fetching players:", playersError);
-      setLoading(false);
-      return;
-    }
-
-    // Fetch teams for player associations
-    const { data: teamsData, error: teamsError } = await supabase
-      .from("teams")
-      .select("*");
-
-    if (teamsError) {
-      console.error("Error fetching teams:", teamsError);
-      setLoading(false);
-      return;
-    }
-
-    // Combine players with team info
-    const playersWithTeams: PlayerWithTeam[] = (playersData || []).map(
-      (player) => {
-        const team = teamsData?.find((t) => t.id === player.team_id);
-
-        return {
-          ...player,
-          teamName: team?.name || "Unknown",
-          teamLogo: team?.logo || "⚡",
-        };
-      }
-    );
-
-    setPlayers(playersWithTeams);
-    setLoading(false);
-  };
-
+  // Fetch players and their stats
   useEffect(() => {
-    const loadData = async () => {
-      await fetchTeams();
-      await fetchPlayers();
-    };
-
-    loadData();
+    fetchPlayerStats();
   }, []);
 
+  const fetchPlayerStats = async () => {
+    try {
+      setLoading(true);
+
+      // Fetch all players
+      const { data: playersData, error: playersError } = await supabase
+        .from("players")
+        .select("*")
+        .order("name");
+
+      if (playersError) throw playersError;
+
+      // Fetch all teams
+      const { data: teamsData, error: teamsError } = await supabase
+        .from("teams")
+        .select("*");
+
+      if (teamsError) throw teamsError;
+
+      setTeams(teamsData || []);
+
+      // Fetch all map player stats
+      const { data: statsData, error: statsError } = await supabase
+        .from("map_player_stats")
+        .select("*");
+
+      if (statsError) throw statsError;
+
+      // Aggregate stats for each player
+      const playersWithStats: PlayerStats[] = (playersData || []).map(
+        (player) => {
+          const playerMapStats = (statsData || []).filter(
+            (stat) => stat.player_id === player.id
+          );
+
+          const totalKills = playerMapStats.reduce(
+            (sum, stat) => sum + (stat.kills || 0),
+            0
+          );
+          const totalAssists = playerMapStats.reduce(
+            (sum, stat) => sum + (stat.assists || 0),
+            0
+          );
+          const totalDeaths = playerMapStats.reduce(
+            (sum, stat) => sum + (stat.deaths || 0),
+            0
+          );
+          const kdRatio =
+            totalDeaths > 0 ? totalKills / totalDeaths : totalKills;
+
+          const team = (teamsData || []).find((t) => t.id === player.team_id);
+
+          return {
+            player,
+            team: team || null,
+            kills: totalKills,
+            assists: totalAssists,
+            deaths: totalDeaths,
+            kd_ratio: kdRatio,
+            maps_played: playerMapStats.length,
+          };
+        }
+      );
+
+      // Sort by kills (descending)
+      playersWithStats.sort((a, b) => b.kills - a.kills);
+
+      setPlayerStats(playersWithStats);
+      setError(null);
+    } catch (err) {
+      console.error("Error fetching player stats:", err);
+      setError("Failed to load players. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Add new player
-  const handleAddPlayer = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (!formData.name || !formData.team_id) {
-      alert("Please fill in all required fields");
+  const handleAddPlayer = async () => {
+    if (!formData.name.trim()) {
+      alert("Please enter a player name");
       return;
     }
 
-    const { error } = await supabase.from("players").insert([
-      {
-        name: formData.name,
-        team_id: parseInt(formData.team_id),
-        role: formData.role || null,
-        avatar: formData.avatar,
-      },
-    ]);
-
-    if (error) {
-      console.error("Error adding player:", error);
-      alert("Failed to add player: " + error.message);
+    if (!formData.team_id) {
+      alert("Please select a team");
       return;
     }
 
-    // Reset form and refresh
-    setFormData({ name: "", team_id: "", role: "", avatar: "👤" });
-    setShowAddForm(false);
-    fetchPlayers();
+    try {
+      const { error } = await supabase
+        .from("players")
+        .insert([
+          {
+            name: formData.name,
+            team_id: parseInt(formData.team_id),
+            role: formData.role || "Player",
+            avatar: formData.avatar || "👤",
+          },
+        ])
+        .select();
+
+      if (error) throw error;
+
+      // Reset form and refresh players
+      setFormData({
+        name: "",
+        team_id: "",
+        role: "",
+        avatar: "",
+      });
+      setShowAddForm(false);
+      await fetchPlayerStats();
+      alert("Player added successfully!");
+    } catch (err) {
+      console.error("Error adding player:", err);
+      alert("Failed to add player. Please try again.");
+    }
+  };
+
+  // Update player
+  const handleUpdatePlayer = async () => {
+    if (!editingPlayer) return;
+
+    try {
+      const { error } = await supabase
+        .from("players")
+        .update({
+          name: formData.name,
+          team_id: parseInt(formData.team_id),
+          role: formData.role,
+          avatar: formData.avatar,
+        })
+        .eq("id", editingPlayer.id);
+
+      if (error) throw error;
+
+      // Reset form and refresh players
+      setEditingPlayer(null);
+      setFormData({
+        name: "",
+        team_id: "",
+        role: "",
+        avatar: "",
+      });
+      await fetchPlayerStats();
+      alert("Player updated successfully!");
+    } catch (err) {
+      console.error("Error updating player:", err);
+      alert("Failed to update player. Please try again.");
+    }
   };
 
   // Delete player
-  const handleDeletePlayer = async (id: number) => {
-    if (!confirm("Are you sure you want to delete this player?")) {
+  const handleDeletePlayer = async (playerId: number, playerName: string) => {
+    if (!confirm(`Are you sure you want to delete ${playerName}?`)) {
       return;
     }
 
-    const { error } = await supabase.from("players").delete().eq("id", id);
+    try {
+      const { error } = await supabase
+        .from("players")
+        .delete()
+        .eq("id", playerId);
 
-    if (error) {
-      console.error("Error deleting player:", error);
-      alert("Failed to delete player: " + error.message);
-      return;
+      if (error) throw error;
+
+      await fetchPlayerStats();
+      alert("Player deleted successfully!");
+    } catch (err) {
+      console.error("Error deleting player:", err);
+      alert("Failed to delete player. Please try again.");
     }
-
-    fetchPlayers();
   };
 
-  // Filter players
-  const filteredPlayers = players.filter((player) => {
-    const matchesSearch = player.name
-      .toLowerCase()
-      .includes(searchTerm.toLowerCase());
-    const matchesTeam =
-      !selectedTeamFilter || player.team_id.toString() === selectedTeamFilter;
-    return matchesSearch && matchesTeam;
-  });
+  // Edit player - populate form
+  const startEditPlayer = (player: Player) => {
+    setEditingPlayer(player);
+    setFormData({
+      name: player.name,
+      team_id: player.team_id.toString(),
+      role: player.role,
+      avatar: player.avatar,
+    });
+    setShowAddForm(true);
+  };
+
+  // Cancel editing
+  const cancelEdit = () => {
+    setEditingPlayer(null);
+    setShowAddForm(false);
+    setFormData({
+      name: "",
+      team_id: "",
+      role: "",
+      avatar: "",
+    });
+  };
+
+  // Filter players based on search
+  const filteredPlayers = playerStats.filter(
+    (ps) =>
+      ps.player.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      ps.team?.name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   if (loading) {
     return (
@@ -198,7 +288,7 @@ export default function AdminPlayersPage() {
               Player Management
             </h1>
             <p className="text-gray-400">
-              Manage all players in Fight Club Tournament
+              Manage all players and view their statistics
             </p>
           </div>
           <div className="flex space-x-3">
@@ -209,79 +299,38 @@ export default function AdminPlayersPage() {
               View Site
             </Link>
             <button
-              onClick={() => setShowAddForm(!showAddForm)}
+              onClick={() => {
+                setShowAddForm(!showAddForm);
+                if (editingPlayer) cancelEdit();
+              }}
               className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold transition-colors"
             >
-              {showAddForm ? "Cancel" : "+ Add New Player"}
+              + Add New Player
             </button>
           </div>
         </div>
 
-        {/* Stats Overview */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <div className="bg-gray-900/50 backdrop-blur-sm rounded-xl p-6 border border-gray-800">
-            <div className="text-3xl mb-2">🎮</div>
-            <div className="text-2xl font-bold text-white">
-              {filteredPlayers.length}
-            </div>
-            <div className="text-sm text-gray-400">Total Players</div>
+        {/* Error Message */}
+        {error && (
+          <div className="bg-red-900/50 border border-red-700 text-red-200 px-4 py-3 rounded-lg">
+            {error}
           </div>
-          <div className="bg-gray-900/50 backdrop-blur-sm rounded-xl p-6 border border-gray-800">
-            <div className="text-3xl mb-2">💀</div>
-            <div className="text-2xl font-bold text-green-400">
-              {filteredPlayers.reduce((sum, p) => sum + p.kills, 0)}
-            </div>
-            <div className="text-sm text-gray-400">Total Kills</div>
-          </div>
-          <div className="bg-gray-900/50 backdrop-blur-sm rounded-xl p-6 border border-gray-800">
-            <div className="text-3xl mb-2">🤝</div>
-            <div className="text-2xl font-bold text-blue-400">
-              {filteredPlayers.reduce((sum, p) => sum + p.assists, 0)}
-            </div>
-            <div className="text-sm text-gray-400">Total Assists</div>
-          </div>
-          <div className="bg-gray-900/50 backdrop-blur-sm rounded-xl p-6 border border-gray-800">
-            <div className="text-3xl mb-2">📊</div>
-            <div className="text-2xl font-bold text-purple-400">
-              {filteredPlayers.length > 0
-                ? (
-                    filteredPlayers.reduce(
-                      (sum, p) => sum + (p.deaths > 0 ? p.kills / p.deaths : 0),
-                      0
-                    ) / filteredPlayers.length
-                  ).toFixed(2)
-                : "0.00"}
-            </div>
-            <div className="text-sm text-gray-400">Avg K/D Ratio</div>
-          </div>
-        </div>
+        )}
 
         {/* Players Table */}
         <div className="bg-gray-900/50 backdrop-blur-sm rounded-2xl border border-gray-800 overflow-hidden">
           <div className="p-6 border-b border-gray-800">
             <div className="flex items-center justify-between">
-              <h2 className="text-xl font-bold text-white">All Players</h2>
-              <div className="flex space-x-3">
-                <select
-                  value={selectedTeamFilter}
-                  onChange={(e) => setSelectedTeamFilter(e.target.value)}
-                  className="px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-blue-500"
-                >
-                  <option value="">All Teams</option>
-                  {teams.map((team) => (
-                    <option key={team.id} value={team.id}>
-                      {team.logo} {team.name}
-                    </option>
-                  ))}
-                </select>
-                <input
-                  type="text"
-                  placeholder="Search players..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-blue-500"
-                />
-              </div>
+              <h2 className="text-xl font-bold text-white">
+                All Players ({filteredPlayers.length})
+              </h2>
+              <input
+                type="text"
+                placeholder="Search players or teams..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-blue-500"
+              />
             </div>
           </div>
 
@@ -299,22 +348,19 @@ export default function AdminPlayersPage() {
                     Role
                   </th>
                   <th className="px-6 py-4 text-center text-xs font-semibold text-gray-400 uppercase">
-                    Matches
+                    Maps
                   </th>
                   <th className="px-6 py-4 text-center text-xs font-semibold text-gray-400 uppercase">
                     Kills
                   </th>
                   <th className="px-6 py-4 text-center text-xs font-semibold text-gray-400 uppercase">
-                    Deaths
-                  </th>
-                  <th className="px-6 py-4 text-center text-xs font-semibold text-gray-400 uppercase">
                     Assists
                   </th>
                   <th className="px-6 py-4 text-center text-xs font-semibold text-gray-400 uppercase">
-                    K/D
+                    Deaths
                   </th>
                   <th className="px-6 py-4 text-center text-xs font-semibold text-gray-400 uppercase">
-                    W/L
+                    K/D
                   </th>
                   <th className="px-6 py-4 text-center text-xs font-semibold text-gray-400 uppercase">
                     Actions
@@ -324,94 +370,92 @@ export default function AdminPlayersPage() {
               <tbody className="divide-y divide-gray-800">
                 {filteredPlayers.length === 0 ? (
                   <tr>
-                    <td colSpan={10} className="px-6 py-12 text-center">
-                      <div className="text-gray-400">
-                        {players.length === 0
-                          ? "No players found. Add a player to get started!"
-                          : "No players match your filters."}
-                      </div>
+                    <td
+                      colSpan={9}
+                      className="px-6 py-8 text-center text-gray-400"
+                    >
+                      {searchQuery
+                        ? "No players found matching your search."
+                        : "No players yet. Add one to get started!"}
                     </td>
                   </tr>
                 ) : (
-                  filteredPlayers.map((player) => {
-                    const kd =
-                      player.deaths > 0
-                        ? (player.kills / player.deaths).toFixed(2)
-                        : player.kills > 0
-                        ? player.kills.toFixed(2)
-                        : "0.00";
-
+                  filteredPlayers.map((ps) => {
                     return (
                       <tr
-                        key={player.id}
+                        key={ps.player.id}
                         className="hover:bg-gray-800/30 transition-colors"
                       >
                         <td className="px-6 py-4">
                           <div className="flex items-center space-x-3">
-                            <span className="text-2xl">{player.avatar}</span>
+                            <span className="text-2xl">{ps.player.avatar}</span>
                             <div>
                               <div className="text-white font-semibold">
-                                {player.name}
-                              </div>
-                              <div className="text-gray-400 text-sm">
-                                ID: {player.id}
+                                {ps.player.name}
                               </div>
                             </div>
                           </div>
                         </td>
                         <td className="px-6 py-4">
-                          <div className="flex items-center space-x-2">
-                            <span className="text-xl">{player.teamLogo}</span>
-                            <span className="text-gray-300">
-                              {player.teamName}
-                            </span>
-                          </div>
+                          {ps.team ? (
+                            <div className="flex items-center space-x-2">
+                              <span className="text-xl">{ps.team.logo}</span>
+                              <span className="text-white">{ps.team.name}</span>
+                            </div>
+                          ) : (
+                            <span className="text-gray-500">No team</span>
+                          )}
                         </td>
                         <td className="px-6 py-4">
-                          <span className="text-gray-300 text-sm">
-                            {player.role || "—"}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 text-center">
-                          <span className="text-gray-300 font-medium">
-                            {player.matches_played}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 text-center">
-                          <span className="text-green-400 font-semibold">
-                            {player.kills}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 text-center">
-                          <span className="text-red-400 font-semibold">
-                            {player.deaths}
+                          <span className="text-gray-300">
+                            {ps.player.role}
                           </span>
                         </td>
                         <td className="px-6 py-4 text-center">
                           <span className="text-blue-400 font-semibold">
-                            {player.assists}
+                            {ps.maps_played}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 text-center">
+                          <span className="text-green-400 font-semibold text-lg">
+                            {ps.kills}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 text-center">
+                          <span className="text-yellow-400 font-semibold text-lg">
+                            {ps.assists}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 text-center">
+                          <span className="text-red-400 font-semibold text-lg">
+                            {ps.deaths}
                           </span>
                         </td>
                         <td className="px-6 py-4 text-center">
                           <span
                             className={`font-semibold ${
-                              parseFloat(kd) >= 1.0
+                              ps.kd_ratio >= 1.5
                                 ? "text-green-400"
-                                : "text-yellow-400"
+                                : ps.kd_ratio >= 1.0
+                                ? "text-blue-400"
+                                : "text-orange-400"
                             }`}
                           >
-                            {kd}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 text-center">
-                          <span className="text-gray-300 text-sm">
-                            {player.wins}W / {player.losses}L
+                            {ps.kd_ratio.toFixed(2)}
                           </span>
                         </td>
                         <td className="px-6 py-4 text-center">
                           <div className="flex items-center justify-center space-x-2">
                             <button
-                              onClick={() => handleDeletePlayer(player.id)}
+                              onClick={() => startEditPlayer(ps.player)}
+                              className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded transition-colors"
+                            >
+                              Edit
+                            </button>
+                            <button
+                              onClick={() =>
+                                handleDeletePlayer(ps.player.id, ps.player.name)
+                              }
                               className="px-3 py-1 bg-red-600 hover:bg-red-700 text-white text-sm rounded transition-colors"
                             >
                               Delete
@@ -427,111 +471,93 @@ export default function AdminPlayersPage() {
           </div>
         </div>
 
-        {/* Add Player Form */}
+        {/* Add/Edit Player Form */}
         {showAddForm && (
           <div className="bg-gray-900/50 backdrop-blur-sm rounded-2xl border border-gray-800 p-6">
             <h3 className="text-xl font-bold text-white mb-4">
-              Add New Player
+              {editingPlayer ? "Edit Player" : "Add New Player"}
             </h3>
             <p className="text-gray-400 text-sm mb-4">
-              Stats will be calculated automatically from match results.
+              {editingPlayer
+                ? "Update player information."
+                : "Create a new player. Statistics will be automatically calculated from match results."}
             </p>
-            <form onSubmit={handleAddPlayer}>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                <div>
-                  <label className="block text-gray-400 text-sm mb-2">
-                    Player Name *
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="Enter player name"
-                    value={formData.name}
-                    onChange={(e) =>
-                      setFormData({ ...formData, name: e.target.value })
-                    }
-                    required
-                    className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-blue-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-gray-400 text-sm mb-2">
-                    Team *
-                  </label>
-                  <select
-                    value={formData.team_id}
-                    onChange={(e) =>
-                      setFormData({ ...formData, team_id: e.target.value })
-                    }
-                    required
-                    className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-blue-500"
-                  >
-                    <option value="">Select team</option>
-                    {teams.map((team) => (
-                      <option key={team.id} value={team.id}>
-                        {team.logo} {team.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-gray-400 text-sm mb-2">
-                    Role
-                  </label>
-                  <select
-                    value={formData.role}
-                    onChange={(e) =>
-                      setFormData({ ...formData, role: e.target.value })
-                    }
-                    className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-blue-500"
-                  >
-                    <option value="">Select role</option>
-                    <option value="Entry Fragger">Entry Fragger</option>
-                    <option value="IGL">IGL (In-Game Leader)</option>
-                    <option value="AWPer">AWPer</option>
-                    <option value="Support">Support</option>
-                    <option value="Rifler">Rifler</option>
-                    <option value="Lurker">Lurker</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-gray-400 text-sm mb-2">
-                    Avatar (Emoji)
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="👤"
-                    value={formData.avatar}
-                    onChange={(e) =>
-                      setFormData({ ...formData, avatar: e.target.value })
-                    }
-                    className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-blue-500"
-                  />
-                </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-gray-400 text-sm mb-2">
+                  Player Name <span className="text-red-400">*</span>
+                </label>
+                <input
+                  type="text"
+                  placeholder="Enter player name"
+                  value={formData.name}
+                  onChange={(e) =>
+                    setFormData({ ...formData, name: e.target.value })
+                  }
+                  className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-blue-500"
+                />
               </div>
-              <div className="mt-4 flex space-x-3">
-                <button
-                  type="submit"
-                  className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-colors"
+              <div>
+                <label className="block text-gray-400 text-sm mb-2">
+                  Team <span className="text-red-400">*</span>
+                </label>
+                <select
+                  value={formData.team_id}
+                  onChange={(e) =>
+                    setFormData({ ...formData, team_id: e.target.value })
+                  }
+                  className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-blue-500"
                 >
-                  Create Player
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowAddForm(false);
-                    setFormData({
-                      name: "",
-                      team_id: "",
-                      role: "",
-                      avatar: "👤",
-                    });
-                  }}
-                  className="px-6 py-2 bg-gray-700 hover:bg-gray-600 text-white font-semibold rounded-lg transition-colors"
-                >
-                  Cancel
-                </button>
+                  <option value="">Select a team</option>
+                  {teams.map((team) => (
+                    <option key={team.id} value={team.id}>
+                      {team.logo} {team.name}
+                    </option>
+                  ))}
+                </select>
               </div>
-            </form>
+              <div>
+                <label className="block text-gray-400 text-sm mb-2">Role</label>
+                <input
+                  type="text"
+                  placeholder="e.g., Duelist, Controller, IGL"
+                  value={formData.role}
+                  onChange={(e) =>
+                    setFormData({ ...formData, role: e.target.value })
+                  }
+                  className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-blue-500"
+                />
+              </div>
+              <div>
+                <label className="block text-gray-400 text-sm mb-2">
+                  Avatar Emoji
+                </label>
+                <input
+                  type="text"
+                  placeholder="👤"
+                  value={formData.avatar}
+                  onChange={(e) =>
+                    setFormData({ ...formData, avatar: e.target.value })
+                  }
+                  maxLength={2}
+                  className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-blue-500"
+                />
+              </div>
+            </div>
+            <div className="mt-4 flex space-x-3">
+              <button
+                onClick={editingPlayer ? handleUpdatePlayer : handleAddPlayer}
+                className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-colors"
+              >
+                {editingPlayer ? "Update Player" : "Create Player"}
+              </button>
+              <button
+                onClick={cancelEdit}
+                className="px-6 py-2 bg-gray-700 hover:bg-gray-600 text-white font-semibold rounded-lg transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
           </div>
         )}
       </div>
