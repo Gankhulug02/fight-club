@@ -64,6 +64,12 @@ export default function RootLayout({
                 >
                   Matches
                 </Link>
+                <Link
+                  href="/players"
+                  className="text-gray-300 hover:text-white transition-colors duration-200 text-sm font-medium"
+                >
+                  Players
+                </Link>
                 {/* <Link
                   href="/schedule"
                   className="text-gray-300 hover:text-white transition-colors duration-200 text-sm font-medium"
