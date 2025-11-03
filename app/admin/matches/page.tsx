@@ -219,7 +219,7 @@ export default function AdminMatchesPage() {
           team2_score: 0,
           match_date: bulkFormData.match_date,
           num_maps: bulkFormData.maps_per_match,
-          status: bulkFormData.status,
+          status: "completed",
         }));
 
       const { data: createdMatches, error: matchError } = await supabase
@@ -239,7 +239,7 @@ export default function AdminMatchesPage() {
             team1_score: 0,
             team2_score: 0,
             winner_team_id: null,
-            status: bulkFormData.status,
+            status: "completed",
           }))
       );
 
@@ -254,7 +254,7 @@ export default function AdminMatchesPage() {
         team1_id: "",
         team2_id: "",
         match_date: "",
-        status: "scheduled",
+        status: "completed",
         number_of_matches: 1,
         maps_per_match: 3,
       });
@@ -281,7 +281,7 @@ export default function AdminMatchesPage() {
           team2_id: parseInt(formData.team2_id),
           match_date: formData.match_date,
           num_maps: editingMaps.length,
-          status: formData.status,
+          status: "completed",
         })
         .eq("id", editingMatch.id);
 
@@ -302,7 +302,7 @@ export default function AdminMatchesPage() {
             team1_score: map.team1_score,
             team2_score: map.team2_score,
             winner_team_id: winnerId,
-            status: map.status,
+            status: "completed",
           })
           .eq("id", map.id);
 
@@ -350,7 +350,7 @@ export default function AdminMatchesPage() {
         team1_score: "0",
         team2_score: "0",
         match_date: "",
-        status: "scheduled",
+        status: "completed",
       });
       setShowAddForm(false);
       await fetchData();
@@ -1160,7 +1160,7 @@ export default function AdminMatchesPage() {
                           : "TBD"}
                       </span>
                     </div>
-                    <div className="grid grid-cols-3 gap-4">
+                    <div className="grid grid-cols-2 gap-4">
                       <div>
                         <label className="block text-gray-400 text-sm mb-2">
                           {
@@ -1215,7 +1215,7 @@ export default function AdminMatchesPage() {
                           className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-blue-500"
                         />
                       </div>
-                      <div>
+                      {/* <div>
                         <label className="block text-gray-400 text-sm mb-2">
                           Map Status
                         </label>
@@ -1232,12 +1232,12 @@ export default function AdminMatchesPage() {
                           }}
                           className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-blue-500"
                         >
+                          <option value="completed">Completed</option>
                           <option value="scheduled">Scheduled</option>
                           <option value="live">Live</option>
-                          <option value="completed">Completed</option>
                           <option value="cancelled">Cancelled</option>
                         </select>
-                      </div>
+                      </div> */}
                     </div>
 
                     {/* Player Statistics */}
