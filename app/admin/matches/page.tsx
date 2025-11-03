@@ -216,6 +216,14 @@ export default function AdminMatchesPage() {
       status: match.status,
     });
     setShowAddForm(true);
+
+    // Scroll to bottom after a brief delay to allow form to render
+    setTimeout(() => {
+      window.scrollTo({
+        top: document.documentElement.scrollHeight,
+        behavior: "smooth",
+      });
+    }, 100);
   };
 
   // Cancel editing
@@ -300,8 +308,19 @@ export default function AdminMatchesPage() {
             </Link>
             <button
               onClick={() => {
-                setShowAddForm(!showAddForm);
+                const newShowState = !showAddForm;
+                setShowAddForm(newShowState);
                 if (editingMatch) cancelEdit();
+
+                // Scroll to bottom when opening the form
+                if (newShowState) {
+                  setTimeout(() => {
+                    window.scrollTo({
+                      top: document.documentElement.scrollHeight,
+                      behavior: "smooth",
+                    });
+                  }, 100);
+                }
               }}
               className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold transition-colors"
             >
