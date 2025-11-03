@@ -70,8 +70,8 @@ export default function RootLayout({
                 </a>
               </div>
 
-              {/* Live Indicator */}
-              <div className="flex items-center space-x-2">
+              {/* Live Indicator & Admin */}
+              <div className="flex items-center space-x-6">
                 <div className="relative flex items-center">
                   <span className="flex h-3 w-3">
                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
@@ -81,6 +81,12 @@ export default function RootLayout({
                     LIVE
                   </span>
                 </div>
+                <a
+                  href="/admin"
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg transition-colors"
+                >
+                  Admin
+                </a>
               </div>
             </div>
           </div>
