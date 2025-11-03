@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, use } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 
@@ -38,7 +38,12 @@ interface TeamStats {
   rank: number;
 }
 
-export default function TeamDetailPage({ params }: { params: { id: string } }) {
+export default function TeamDetailPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  const { id } = use(params);
   const [team, setTeam] = useState<Team | null>(null);
   const [stats, setStats] = useState<TeamStats>({
     matches_won: 0,
@@ -54,12 +59,12 @@ export default function TeamDetailPage({ params }: { params: { id: string } }) {
   useEffect(() => {
     fetchTeamData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [params.id]);
+  }, [id]);
 
   const fetchTeamData = async () => {
     try {
       setLoading(true);
-      const teamId = parseInt(params.id);
+      const teamId = parseInt(id);
 
       // Fetch the specific team
       const { data: teamData, error: teamError } = await supabase
@@ -67,6 +72,8 @@ export default function TeamDetailPage({ params }: { params: { id: string } }) {
         .select("*")
         .eq("id", teamId)
         .single();
+
+      console.log("teamData", teamData);
 
       if (teamError) throw teamError;
       if (!teamData) throw new Error("Team not found");
@@ -340,14 +347,12 @@ export default function TeamDetailPage({ params }: { params: { id: string } }) {
                 <tbody className="divide-y divide-gray-800">
                   {matches.map((match) => {
                     const matchDate = new Date(match.match_date);
-                    const formattedDate = matchDate.toLocaleDateString(
-                      "en-US",
-                      {
-                        month: "short",
-                        day: "numeric",
-                        year: "numeric",
-                      }
-                    );
+                    const formattedDate = new Intl.DateTimeFormat("en-US", {
+                      month: "short",
+                      day: "numeric",
+                      year: "numeric",
+                      timeZone: "UTC",
+                    }).format(matchDate);
 
                     return (
                       <tr
@@ -355,7 +360,10 @@ export default function TeamDetailPage({ params }: { params: { id: string } }) {
                         className="hover:bg-gray-800/30 transition-colors duration-150"
                       >
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <span className="text-gray-400 text-sm">
+                          <span
+                            className="text-gray-400 text-sm"
+                            suppressHydrationWarning
+                          >
                             {formattedDate}
                           </span>
                         </td>
