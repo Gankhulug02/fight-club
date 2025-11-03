@@ -9,24 +9,84 @@ interface Team {
   logo: string;
   roundsWon: number;
   roundsLost: number;
+  matchesWon: number;
+  matchesLost: number;
 }
 
 export default function AdminTeamsPage() {
   const [teams] = useState<Team[]>([
-    { id: 1, name: "FaZe Clan", logo: "🔥", roundsWon: 156, roundsLost: 98 },
+    {
+      id: 1,
+      name: "FaZe Clan",
+      logo: "🔥",
+      roundsWon: 156,
+      roundsLost: 98,
+      matchesWon: 12,
+      matchesLost: 3,
+    },
     {
       id: 2,
       name: "Natus Vincere",
       logo: "⭐",
       roundsWon: 149,
       roundsLost: 102,
+      matchesWon: 11,
+      matchesLost: 4,
     },
-    { id: 3, name: "Vitality", logo: "🐝", roundsWon: 145, roundsLost: 110 },
-    { id: 4, name: "G2 Esports", logo: "🎮", roundsWon: 142, roundsLost: 115 },
-    { id: 5, name: "Team Liquid", logo: "🐴", roundsWon: 138, roundsLost: 118 },
-    { id: 6, name: "MOUZ", logo: "🐭", roundsWon: 135, roundsLost: 125 },
-    { id: 7, name: "Heroic", logo: "🦁", roundsWon: 128, roundsLost: 130 },
-    { id: 8, name: "ENCE", logo: "🦅", roundsWon: 120, roundsLost: 138 },
+    {
+      id: 3,
+      name: "Vitality",
+      logo: "🐝",
+      roundsWon: 145,
+      roundsLost: 110,
+      matchesWon: 10,
+      matchesLost: 5,
+    },
+    {
+      id: 4,
+      name: "G2 Esports",
+      logo: "🎮",
+      roundsWon: 142,
+      roundsLost: 115,
+      matchesWon: 9,
+      matchesLost: 6,
+    },
+    {
+      id: 5,
+      name: "Team Liquid",
+      logo: "🐴",
+      roundsWon: 138,
+      roundsLost: 118,
+      matchesWon: 9,
+      matchesLost: 6,
+    },
+    {
+      id: 6,
+      name: "MOUZ",
+      logo: "🐭",
+      roundsWon: 135,
+      roundsLost: 125,
+      matchesWon: 8,
+      matchesLost: 7,
+    },
+    {
+      id: 7,
+      name: "Heroic",
+      logo: "🦁",
+      roundsWon: 128,
+      roundsLost: 130,
+      matchesWon: 7,
+      matchesLost: 8,
+    },
+    {
+      id: 8,
+      name: "ENCE",
+      logo: "🦅",
+      roundsWon: 120,
+      roundsLost: 138,
+      matchesWon: 5,
+      matchesLost: 10,
+    },
   ]);
 
   return (
@@ -64,18 +124,32 @@ export default function AdminTeamsPage() {
         </div>
 
         {/* Stats Overview */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
           <div className="bg-gray-900/50 backdrop-blur-sm rounded-xl p-6 border border-gray-800">
             <div className="text-3xl mb-2">👥</div>
             <div className="text-2xl font-bold text-white">{teams.length}</div>
             <div className="text-sm text-gray-400">Total Teams</div>
           </div>
+          <div className="bg-green-900/50 backdrop-blur-sm rounded-xl p-6 border border-green-800">
+            <div className="text-3xl mb-2">✅</div>
+            <div className="text-2xl font-bold text-green-400">
+              {teams.reduce((sum, t) => sum + t.matchesWon, 0)}
+            </div>
+            <div className="text-sm text-green-300">Matches Won</div>
+          </div>
+          <div className="bg-red-900/50 backdrop-blur-sm rounded-xl p-6 border border-red-800">
+            <div className="text-3xl mb-2">❌</div>
+            <div className="text-2xl font-bold text-red-400">
+              {teams.reduce((sum, t) => sum + t.matchesLost, 0)}
+            </div>
+            <div className="text-sm text-red-300">Matches Lost</div>
+          </div>
           <div className="bg-gray-900/50 backdrop-blur-sm rounded-xl p-6 border border-gray-800">
             <div className="text-3xl mb-2">🏆</div>
-            <div className="text-2xl font-bold text-green-400">
-              {teams.filter((t) => t.roundsWon > t.roundsLost).length}
+            <div className="text-2xl font-bold text-yellow-400">
+              {teams.filter((t) => t.matchesWon > t.matchesLost).length}
             </div>
-            <div className="text-sm text-gray-400">Positive W/L</div>
+            <div className="text-sm text-gray-400">Positive Record</div>
           </div>
           <div className="bg-gray-900/50 backdrop-blur-sm rounded-xl p-6 border border-gray-800">
             <div className="text-3xl mb-2">📊</div>
@@ -86,7 +160,7 @@ export default function AdminTeamsPage() {
           </div>
           <div className="bg-gray-900/50 backdrop-blur-sm rounded-xl p-6 border border-gray-800">
             <div className="text-3xl mb-2">📉</div>
-            <div className="text-2xl font-bold text-red-400">
+            <div className="text-2xl font-bold text-orange-400">
               {teams.reduce((sum, t) => sum + t.roundsLost, 0)}
             </div>
             <div className="text-sm text-gray-400">Total Rounds Lost</div>
@@ -114,16 +188,22 @@ export default function AdminTeamsPage() {
                     Team
                   </th>
                   <th className="px-6 py-4 text-center text-xs font-semibold text-gray-400 uppercase">
+                    W
+                  </th>
+                  <th className="px-6 py-4 text-center text-xs font-semibold text-gray-400 uppercase">
+                    L
+                  </th>
+                  <th className="px-6 py-4 text-center text-xs font-semibold text-gray-400 uppercase">
                     Rounds Won
                   </th>
                   <th className="px-6 py-4 text-center text-xs font-semibold text-gray-400 uppercase">
                     Rounds Lost
                   </th>
                   <th className="px-6 py-4 text-center text-xs font-semibold text-gray-400 uppercase">
-                    Diff
+                    Round Diff
                   </th>
                   <th className="px-6 py-4 text-center text-xs font-semibold text-gray-400 uppercase">
-                    Win Rate
+                    Match Win %
                   </th>
                   <th className="px-6 py-4 text-center text-xs font-semibold text-gray-400 uppercase">
                     Actions
@@ -132,11 +212,12 @@ export default function AdminTeamsPage() {
               </thead>
               <tbody className="divide-y divide-gray-800">
                 {teams.map((team) => {
-                  const diff = team.roundsWon - team.roundsLost;
-                  const winRate = (
-                    (team.roundsWon / (team.roundsWon + team.roundsLost)) *
+                  const roundDiff = team.roundsWon - team.roundsLost;
+                  const matchWinRate = (
+                    (team.matchesWon / (team.matchesWon + team.matchesLost)) *
                     100
                   ).toFixed(1);
+                  const matchRecord = `${team.matchesWon}-${team.matchesLost}`;
 
                   return (
                     <tr
@@ -151,34 +232,50 @@ export default function AdminTeamsPage() {
                               {team.name}
                             </div>
                             <div className="text-gray-400 text-sm">
-                              ID: {team.id}
+                              {matchRecord}
                             </div>
                           </div>
                         </div>
                       </td>
                       <td className="px-6 py-4 text-center">
                         <span className="text-green-400 font-semibold text-lg">
-                          {team.roundsWon}
+                          {team.matchesWon}
                         </span>
                       </td>
                       <td className="px-6 py-4 text-center">
                         <span className="text-red-400 font-semibold text-lg">
+                          {team.matchesLost}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 text-center">
+                        <span className="text-green-400 font-semibold">
+                          {team.roundsWon}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 text-center">
+                        <span className="text-red-400 font-semibold">
                           {team.roundsLost}
                         </span>
                       </td>
                       <td className="px-6 py-4 text-center">
                         <span
                           className={`font-semibold ${
-                            diff > 0 ? "text-green-400" : "text-red-400"
+                            roundDiff > 0 ? "text-green-400" : "text-red-400"
                           }`}
                         >
-                          {diff > 0 ? "+" : ""}
-                          {diff}
+                          {roundDiff > 0 ? "+" : ""}
+                          {roundDiff}
                         </span>
                       </td>
                       <td className="px-6 py-4 text-center">
-                        <span className="text-blue-400 font-semibold">
-                          {winRate}%
+                        <span
+                          className={`font-semibold ${
+                            parseFloat(matchWinRate) >= 50
+                              ? "text-blue-400"
+                              : "text-yellow-400"
+                          }`}
+                        >
+                          {matchWinRate}%
                         </span>
                       </td>
                       <td className="px-6 py-4 text-center">
@@ -208,8 +305,8 @@ export default function AdminTeamsPage() {
         {/* Add Team Form */}
         <div className="bg-gray-900/50 backdrop-blur-sm rounded-2xl border border-gray-800 p-6">
           <h3 className="text-xl font-bold text-white mb-4">Add New Team</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="md:col-span-2 lg:col-span-1">
               <label className="block text-gray-400 text-sm mb-2">
                 Team Name
               </label>
@@ -226,6 +323,28 @@ export default function AdminTeamsPage() {
               <input
                 type="text"
                 placeholder="🔥"
+                className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-blue-500"
+              />
+            </div>
+            <div>
+              <label className="block text-gray-400 text-sm mb-2">
+                Matches Won
+              </label>
+              <input
+                type="number"
+                placeholder="0"
+                defaultValue="0"
+                className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-blue-500"
+              />
+            </div>
+            <div>
+              <label className="block text-gray-400 text-sm mb-2">
+                Matches Lost
+              </label>
+              <input
+                type="number"
+                placeholder="0"
+                defaultValue="0"
                 className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-blue-500"
               />
             </div>
@@ -265,4 +384,3 @@ export default function AdminTeamsPage() {
     </div>
   );
 }
-
