@@ -38,6 +38,23 @@ interface TeamStats {
   rank: number;
 }
 
+interface Player {
+  id: number;
+  name: string;
+  team_id: number;
+  role: string;
+  avatar: string;
+}
+
+interface PlayerStats {
+  player: Player;
+  kills: number;
+  assists: number;
+  deaths: number;
+  kd_ratio: number;
+  maps_played: number;
+}
+
 export default function TeamDetailPage({
   params,
 }: {
@@ -53,6 +70,7 @@ export default function TeamDetailPage({
     rank: 0,
   });
   const [matches, setMatches] = useState<MatchWithOpponent[]>([]);
+  const [players, setPlayers] = useState<PlayerStats[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -72,8 +90,6 @@ export default function TeamDetailPage({
         .select("*")
         .eq("id", teamId)
         .single();
-
-      console.log("teamData", teamData);
 
       if (teamError) throw teamError;
       if (!teamData) throw new Error("Team not found");
@@ -185,6 +201,60 @@ export default function TeamDetailPage({
       );
 
       setMatches(matchesWithOpponents);
+
+      // Fetch players for this team
+      const { data: playersData, error: playersError } = await supabase
+        .from("players")
+        .select("*")
+        .eq("team_id", teamId)
+        .order("name");
+
+      if (playersError) throw playersError;
+
+      // Fetch all map player stats
+      const { data: statsData, error: statsError } = await supabase
+        .from("map_player_stats")
+        .select("*");
+
+      if (statsError) throw statsError;
+
+      // Aggregate stats for each player
+      const playersWithStats: PlayerStats[] = (playersData || []).map(
+        (player) => {
+          const playerMapStats = (statsData || []).filter(
+            (stat) => stat.player_id === player.id
+          );
+
+          const totalKills = playerMapStats.reduce(
+            (sum, stat) => sum + (stat.kills || 0),
+            0
+          );
+          const totalAssists = playerMapStats.reduce(
+            (sum, stat) => sum + (stat.assists || 0),
+            0
+          );
+          const totalDeaths = playerMapStats.reduce(
+            (sum, stat) => sum + (stat.deaths || 0),
+            0
+          );
+          const kdRatio =
+            totalDeaths > 0 ? totalKills / totalDeaths : totalKills;
+
+          return {
+            player,
+            kills: totalKills,
+            assists: totalAssists,
+            deaths: totalDeaths,
+            kd_ratio: kdRatio,
+            maps_played: playerMapStats.length,
+          };
+        }
+      );
+
+      // Sort by kills (descending)
+      playersWithStats.sort((a, b) => b.kills - a.kills);
+
+      setPlayers(playersWithStats);
       setError(null);
     } catch (err) {
       console.error("Error fetching team data:", err);
@@ -294,16 +364,100 @@ export default function TeamDetailPage({
             </p>
           </div>
 
-          <div className="p-12 text-center">
-            <div className="text-6xl mb-4">👥</div>
-            <h3 className="text-xl font-semibold text-gray-400 mb-2">
-              Player Management Coming Soon
-            </h3>
-            <p className="text-gray-500">
-              Player roster and statistics will be available once the player
-              management system is implemented.
-            </p>
-          </div>
+          {players.length === 0 ? (
+            <div className="p-12 text-center">
+              <div className="text-6xl mb-4">👥</div>
+              <h3 className="text-xl font-semibold text-gray-400 mb-2">
+                No Players Yet
+              </h3>
+              <p className="text-gray-500">
+                This team doesn&apos;t have any players registered yet.
+              </p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="bg-black/50 border-b border-gray-800">
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                      Player
+                    </th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                      Role
+                    </th>
+                    <th className="px-6 py-4 text-center text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                      Maps
+                    </th>
+                    <th className="px-6 py-4 text-center text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                      Kills
+                    </th>
+                    <th className="px-6 py-4 text-center text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                      Assists
+                    </th>
+                    <th className="px-6 py-4 text-center text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                      Deaths
+                    </th>
+                    <th className="px-6 py-4 text-center text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                      K/D
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-800">
+                  {players.map((ps) => (
+                    <tr
+                      key={ps.player.id}
+                      className="hover:bg-gray-800/30 transition-colors duration-150"
+                    >
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="flex items-center space-x-3">
+                          <span className="text-3xl">{ps.player.avatar}</span>
+                          <span className="text-white font-semibold text-lg">
+                            {ps.player.name}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className="text-gray-300">{ps.player.role}</span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-center">
+                        <span className="text-blue-400 font-semibold">
+                          {ps.maps_played}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-center">
+                        <span className="text-green-400 font-bold text-lg">
+                          {ps.kills}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-center">
+                        <span className="text-yellow-400 font-bold text-lg">
+                          {ps.assists}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-center">
+                        <span className="text-red-400 font-bold text-lg">
+                          {ps.deaths}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-center">
+                        <span
+                          className={`inline-flex items-center px-3 py-1 rounded-full font-bold ${
+                            ps.kd_ratio >= 1.5
+                              ? "bg-green-500/20 text-green-400"
+                              : ps.kd_ratio >= 1.0
+                              ? "bg-blue-500/20 text-blue-400"
+                              : "bg-orange-500/20 text-orange-400"
+                          }`}
+                        >
+                          {ps.kd_ratio.toFixed(2)}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
 
         {/* Match History Section */}
