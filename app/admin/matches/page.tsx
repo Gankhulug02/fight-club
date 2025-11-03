@@ -107,7 +107,7 @@ export default function AdminMatchesPage() {
     match_date: "",
     status: "scheduled",
     number_of_matches: 1,
-    maps_per_match: 3,
+    maps_per_match: 2,
   });
   const [editingMaps, setEditingMaps] = useState<MatchMap[]>([]);
 
@@ -460,6 +460,34 @@ export default function AdminMatchesPage() {
     }, 100);
   };
 
+  // Delete map from match
+  const handleDeleteMap = async (mapId: number) => {
+    if (editingMaps.length <= 2) {
+      alert("Cannot delete map. Minimum 2 maps required per match.");
+      return;
+    }
+
+    if (!confirm("Are you sure you want to delete this map?")) {
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from("match_maps")
+        .delete()
+        .eq("id", mapId);
+
+      if (error) throw error;
+
+      // Remove from local state
+      setEditingMaps(editingMaps.filter((map) => map.id !== mapId));
+      alert("Map deleted successfully!");
+    } catch (err) {
+      console.error("Error deleting map:", err);
+      alert("Failed to delete map. Please try again.");
+    }
+  };
+
   // Cancel editing
   const cancelEdit = () => {
     setEditingMatch(null);
@@ -479,7 +507,7 @@ export default function AdminMatchesPage() {
       match_date: "",
       status: "scheduled",
       number_of_matches: 1,
-      maps_per_match: 3,
+      maps_per_match: 2,
     });
   };
 
@@ -922,7 +950,7 @@ export default function AdminMatchesPage() {
                     }
                     className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-blue-500"
                   >
-                    <option value={2}>2 Maps (Best of 2)</option>
+                    <option value={2}>2 Maps (Best of 2) - Default</option>
                     <option value={3}>3 Maps (Best of 3)</option>
                     <option value={4}>4 Maps (Best of 4)</option>
                     <option value={5}>5 Maps (Best of 5)</option>
@@ -1148,18 +1176,29 @@ export default function AdminMatchesPage() {
                       <h5 className="text-white font-semibold">
                         Map {map.map_number}
                       </h5>
-                      <span className="text-xs text-gray-400">
-                        Winner:{" "}
-                        {map.winner_team_id === parseInt(formData.team1_id)
-                          ? teams.find(
-                              (t) => t.id === parseInt(formData.team1_id)
-                            )?.name
-                          : map.winner_team_id === parseInt(formData.team2_id)
-                          ? teams.find(
-                              (t) => t.id === parseInt(formData.team2_id)
-                            )?.name
-                          : "TBD"}
-                      </span>
+                      <div className="flex items-center space-x-3">
+                        <span className="text-xs text-gray-400">
+                          Winner:{" "}
+                          {map.winner_team_id === parseInt(formData.team1_id)
+                            ? teams.find(
+                                (t) => t.id === parseInt(formData.team1_id)
+                              )?.name
+                            : map.winner_team_id === parseInt(formData.team2_id)
+                            ? teams.find(
+                                (t) => t.id === parseInt(formData.team2_id)
+                              )?.name
+                            : "TBD"}
+                        </span>
+                        {editingMaps.length > 2 && (
+                          <button
+                            onClick={() => handleDeleteMap(map.id)}
+                            className="px-2 py-1 bg-red-600 hover:bg-red-700 text-white text-xs rounded transition-colors"
+                            title="Delete this map"
+                          >
+                            Delete
+                          </button>
+                        )}
+                      </div>
                     </div>
                     <div className="mb-4">
                       <label className="block text-gray-400 text-sm mb-2">
