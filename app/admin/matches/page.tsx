@@ -1309,6 +1309,11 @@ export default function AdminMatchesPage() {
                                       {stat.player?.name ||
                                         `Player ${stat.player_id}`}
                                     </div>
+                                    <div className="grid grid-cols-3 gap-2 text-xs text-gray-500 mb-1">
+                                      <div className="text-center">Kills</div>
+                                      <div className="text-center">Deaths</div>
+                                      <div className="text-center">Assists</div>
+                                    </div>
                                     <div className="grid grid-cols-3 gap-2">
                                       <input
                                         type="number"
@@ -1333,27 +1338,6 @@ export default function AdminMatchesPage() {
                                       />
                                       <input
                                         type="number"
-                                        placeholder="A"
-                                        value={stat.assists}
-                                        onChange={(e) => {
-                                          const newMaps = [...editingMaps];
-                                          if (
-                                            statsIndex !== undefined &&
-                                            statsIndex !== -1
-                                          ) {
-                                            newMaps[mapIndex].player_stats![
-                                              statsIndex
-                                            ].assists =
-                                              parseInt(e.target.value) || 0;
-                                            setEditingMaps(newMaps);
-                                          }
-                                        }}
-                                        min="0"
-                                        className="w-full px-2 py-1 bg-gray-700 border border-gray-600 rounded text-white text-xs focus:outline-none focus:border-blue-500"
-                                        title="Assists"
-                                      />
-                                      <input
-                                        type="number"
                                         placeholder="D"
                                         value={stat.deaths}
                                         onChange={(e) => {
@@ -1372,6 +1356,27 @@ export default function AdminMatchesPage() {
                                         min="0"
                                         className="w-full px-2 py-1 bg-gray-700 border border-gray-600 rounded text-white text-xs focus:outline-none focus:border-blue-500"
                                         title="Deaths"
+                                      />
+                                      <input
+                                        type="number"
+                                        placeholder="A"
+                                        value={stat.assists}
+                                        onChange={(e) => {
+                                          const newMaps = [...editingMaps];
+                                          if (
+                                            statsIndex !== undefined &&
+                                            statsIndex !== -1
+                                          ) {
+                                            newMaps[mapIndex].player_stats![
+                                              statsIndex
+                                            ].assists =
+                                              parseInt(e.target.value) || 0;
+                                            setEditingMaps(newMaps);
+                                          }
+                                        }}
+                                        min="0"
+                                        className="w-full px-2 py-1 bg-gray-700 border border-gray-600 rounded text-white text-xs focus:outline-none focus:border-blue-500"
+                                        title="Assists"
                                       />
                                     </div>
                                   </div>
@@ -1420,6 +1425,11 @@ export default function AdminMatchesPage() {
                                       {stat.player?.name ||
                                         `Player ${stat.player_id}`}
                                     </div>
+                                    <div className="grid grid-cols-3 gap-2 text-xs text-gray-500 mb-1">
+                                      <div className="text-center">Kills</div>
+                                      <div className="text-center">Deaths</div>
+                                      <div className="text-center">Assists</div>
+                                    </div>
                                     <div className="grid grid-cols-3 gap-2">
                                       <input
                                         type="number"
@@ -1444,27 +1454,6 @@ export default function AdminMatchesPage() {
                                       />
                                       <input
                                         type="number"
-                                        placeholder="A"
-                                        value={stat.assists}
-                                        onChange={(e) => {
-                                          const newMaps = [...editingMaps];
-                                          if (
-                                            statsIndex !== undefined &&
-                                            statsIndex !== -1
-                                          ) {
-                                            newMaps[mapIndex].player_stats![
-                                              statsIndex
-                                            ].assists =
-                                              parseInt(e.target.value) || 0;
-                                            setEditingMaps(newMaps);
-                                          }
-                                        }}
-                                        min="0"
-                                        className="w-full px-2 py-1 bg-gray-700 border border-gray-600 rounded text-white text-xs focus:outline-none focus:border-blue-500"
-                                        title="Assists"
-                                      />
-                                      <input
-                                        type="number"
                                         placeholder="D"
                                         value={stat.deaths}
                                         onChange={(e) => {
@@ -1484,6 +1473,27 @@ export default function AdminMatchesPage() {
                                         className="w-full px-2 py-1 bg-gray-700 border border-gray-600 rounded text-white text-xs focus:outline-none focus:border-blue-500"
                                         title="Deaths"
                                       />
+                                      <input
+                                        type="number"
+                                        placeholder="A"
+                                        value={stat.assists}
+                                        onChange={(e) => {
+                                          const newMaps = [...editingMaps];
+                                          if (
+                                            statsIndex !== undefined &&
+                                            statsIndex !== -1
+                                          ) {
+                                            newMaps[mapIndex].player_stats![
+                                              statsIndex
+                                            ].assists =
+                                              parseInt(e.target.value) || 0;
+                                            setEditingMaps(newMaps);
+                                          }
+                                        }}
+                                        min="0"
+                                        className="w-full px-2 py-1 bg-gray-700 border border-gray-600 rounded text-white text-xs focus:outline-none focus:border-blue-500"
+                                        title="Assists"
+                                      />
                                     </div>
                                   </div>
                                 );
@@ -1492,7 +1502,7 @@ export default function AdminMatchesPage() {
                         </div>
                       </div>
                       <div className="text-xs text-gray-500 mt-2">
-                        K = Kills, A = Assists, D = Deaths
+                        K = Kills, D = Deaths, A = Assists
                       </div>
                     </div>
                   </div>
