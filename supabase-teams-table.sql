@@ -31,6 +31,30 @@ CREATE TABLE IF NOT EXISTS matches (
   CONSTRAINT different_teams CHECK (team1_id != team2_id)
 );
 
+-- Players table: stores player information
+CREATE TABLE IF NOT EXISTS players (
+  id BIGSERIAL PRIMARY KEY,
+  name TEXT NOT NULL,
+  team_id BIGINT NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
+  avatar TEXT DEFAULT '👤',
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL,
+  CONSTRAINT unique_player_name_per_team UNIQUE (name, team_id)
+);
+
+-- Match player stats: stores individual player performance per match
+CREATE TABLE IF NOT EXISTS match_player_stats (
+  id BIGSERIAL PRIMARY KEY,
+  match_id BIGINT NOT NULL REFERENCES matches(id) ON DELETE CASCADE,
+  player_id BIGINT NOT NULL REFERENCES players(id) ON DELETE CASCADE,
+  kills INTEGER NOT NULL DEFAULT 0 CHECK (kills >= 0),
+  deaths INTEGER NOT NULL DEFAULT 0 CHECK (deaths >= 0),
+  assists INTEGER NOT NULL DEFAULT 0 CHECK (assists >= 0),
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL,
+  CONSTRAINT unique_player_per_match UNIQUE (match_id, player_id)
+);
+
 -- ============================================
 -- INDEXES (Optimized for common queries)
 -- ============================================
@@ -46,6 +70,15 @@ CREATE INDEX IF NOT EXISTS idx_matches_date ON matches(match_date DESC);
 
 -- Composite index for team lookups across both teams
 CREATE INDEX IF NOT EXISTS idx_matches_teams ON matches(team1_id, team2_id);
+
+-- Players indexes
+CREATE INDEX IF NOT EXISTS idx_players_team_id ON players(team_id);
+CREATE INDEX IF NOT EXISTS idx_players_name ON players(name);
+
+-- Match player stats indexes
+CREATE INDEX IF NOT EXISTS idx_match_player_stats_match_id ON match_player_stats(match_id);
+CREATE INDEX IF NOT EXISTS idx_match_player_stats_player_id ON match_player_stats(player_id);
+CREATE INDEX IF NOT EXISTS idx_match_player_stats_player_match ON match_player_stats(player_id, match_id);
 
 -- ============================================
 -- TRIGGERS FOR AUTO-UPDATING TIMESTAMPS
@@ -72,6 +105,20 @@ CREATE TRIGGER update_matches_updated_at
   FOR EACH ROW
   EXECUTE FUNCTION update_updated_at_column();
 
+-- Apply trigger to players table
+DROP TRIGGER IF EXISTS update_players_updated_at ON players;
+CREATE TRIGGER update_players_updated_at
+  BEFORE UPDATE ON players
+  FOR EACH ROW
+  EXECUTE FUNCTION update_updated_at_column();
+
+-- Apply trigger to match_player_stats table
+DROP TRIGGER IF EXISTS update_match_player_stats_updated_at ON match_player_stats;
+CREATE TRIGGER update_match_player_stats_updated_at
+  BEFORE UPDATE ON match_player_stats
+  FOR EACH ROW
+  EXECUTE FUNCTION update_updated_at_column();
+
 -- ============================================
 -- ROW LEVEL SECURITY (RLS) POLICIES
 -- ============================================
@@ -83,6 +130,12 @@ ALTER TABLE teams ENABLE ROW LEVEL SECURITY;
 
 -- Enable RLS for matches table
 ALTER TABLE matches ENABLE ROW LEVEL SECURITY;
+
+-- Enable RLS for players table
+ALTER TABLE players ENABLE ROW LEVEL SECURITY;
+
+-- Enable RLS for match_player_stats table
+ALTER TABLE match_player_stats ENABLE ROW LEVEL SECURITY;
 
 -- ============================================
 -- PUBLIC ACCESS (Free for everyone)
@@ -100,95 +153,30 @@ CREATE POLICY "Enable all operations for everyone on matches" ON matches
   USING (true) 
   WITH CHECK (true);
 
+CREATE POLICY "Enable all operations for everyone on players" ON players
+  FOR ALL 
+  USING (true) 
+  WITH CHECK (true);
+
+CREATE POLICY "Enable all operations for everyone on match_player_stats" ON match_player_stats
+  FOR ALL 
+  USING (true) 
+  WITH CHECK (true);
+
 -- ============================================
 -- SAMPLE DATA (Optional - for testing)
 -- ============================================
-
--- Insert sample teams
-INSERT INTO teams (name, logo) VALUES
-  ('FaZe Clan', '🔥'),
-  ('Natus Vincere', '⭐'),
-  ('Vitality', '🐝'),
-  ('G2 Esports', '🎮'),
-  ('Team Liquid', '🐴'),
-  ('MOUZ', '🐭'),
-  ('Heroic', '🦁'),
-  ('ENCE', '🦅')
-ON CONFLICT (name) DO NOTHING;
-
--- Insert sample matches using CTE for better performance
--- This approach avoids repeated subqueries for each insert
-WITH team_ids AS (
-  SELECT 
-    id,
-    name,
-    ROW_NUMBER() OVER (ORDER BY name) as rn
-  FROM teams
-)
-INSERT INTO matches (team1_id, team2_id, team1_score, team2_score, status)
-SELECT t1.id, t2.id, score1, score2, 'completed'
-FROM (VALUES
-  -- FaZe Clan matches (team vs opponent, score1, score2)
-  ('FaZe Clan', 'Natus Vincere', 16, 10),
-  ('FaZe Clan', 'Vitality', 16, 8),
-  ('FaZe Clan', 'G2 Esports', 16, 12),
-  ('FaZe Clan', 'Team Liquid', 13, 16),
-  ('FaZe Clan', 'MOUZ', 16, 9),
-  ('FaZe Clan', 'Heroic', 16, 6),
-  ('FaZe Clan', 'ENCE', 16, 4),
-  ('FaZe Clan', 'Natus Vincere', 8, 16),
-  ('FaZe Clan', 'Vitality', 16, 11),
-  ('FaZe Clan', 'G2 Esports', 16, 7),
-  ('FaZe Clan', 'Team Liquid', 6, 16),
-  ('FaZe Clan', 'MOUZ', 16, 5),
-  ('FaZe Clan', 'Heroic', 16, 8),
-  ('FaZe Clan', 'ENCE', 13, 6),
-  ('FaZe Clan', 'Vitality', 0, 0),
-  
-  -- Natus Vincere matches
-  ('Natus Vincere', 'Vitality', 16, 13),
-  ('Natus Vincere', 'G2 Esports', 16, 9),
-  ('Natus Vincere', 'Team Liquid', 16, 11),
-  ('Natus Vincere', 'MOUZ', 13, 16),
-  ('Natus Vincere', 'Heroic', 16, 8),
-  ('Natus Vincere', 'ENCE', 16, 5),
-  ('Natus Vincere', 'Vitality', 16, 10),
-  ('Natus Vincere', 'G2 Esports', 12, 16),
-  ('Natus Vincere', 'Team Liquid', 16, 6),
-  ('Natus Vincere', 'MOUZ', 16, 9),
-  ('Natus Vincere', 'Heroic', 16, 7),
-  ('Natus Vincere', 'ENCE', 0, 0),
-  ('Natus Vincere', 'Team Liquid', 0, 0),
-  ('Natus Vincere', 'G2 Esports', 0, 0),
-  ('Natus Vincere', 'Heroic', 0, 0),
-  
-  -- Other team matches
-  ('Vitality', 'G2 Esports', 16, 14),
-  ('Vitality', 'Team Liquid', 16, 12),
-  ('Vitality', 'MOUZ', 13, 16),
-  ('Vitality', 'Heroic', 16, 9),
-  ('Vitality', 'ENCE', 16, 7),
-  ('G2 Esports', 'Team Liquid', 16, 13),
-  ('G2 Esports', 'MOUZ', 14, 16),
-  ('G2 Esports', 'Heroic', 16, 10),
-  ('G2 Esports', 'ENCE', 16, 6),
-  ('Team Liquid', 'MOUZ', 16, 12),
-  ('Team Liquid', 'Heroic', 16, 8),
-  ('Team Liquid', 'ENCE', 16, 5),
-  ('MOUZ', 'Heroic', 16, 11),
-  ('MOUZ', 'ENCE', 16, 9),
-  ('Heroic', 'ENCE', 16, 13)
-) AS matches_data(team1_name, team2_name, score1, score2)
-JOIN team_ids t1 ON t1.name = matches_data.team1_name
-JOIN team_ids t2 ON t2.name = matches_data.team2_name
-ON CONFLICT DO NOTHING;
 
 -- ============================================
 -- OPTIMIZATION NOTES
 -- ============================================
 -- 1. Partial indexes on (team_id, status) for faster completed match queries
--- 2. Composite indexes for common join patterns
+-- 2. Composite indexes for common join patterns (teams, players, match stats)
 -- 3. CTE-based sample data insertion (avoids N subqueries)
 -- 4. NOT NULL constraints added where appropriate
 -- 5. Proper CASCADE deletion to maintain referential integrity
 -- 6. All timestamps have NOT NULL + DEFAULT for consistency
+-- 7. Players table with unique constraint on (name, team_id)
+-- 8. Match player stats with unique constraint on (match_id, player_id)
+-- 9. Optimized indexes for player lookups and KDA statistics aggregation
+-- 10. CHECK constraints ensure non-negative values for kills, deaths, assists

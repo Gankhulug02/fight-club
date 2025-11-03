@@ -38,6 +38,14 @@ interface MatchFormData {
   status: string;
 }
 
+interface BulkMatchFormData {
+  team1_id: string;
+  team2_id: string;
+  match_date: string;
+  status: string;
+  number_of_matches: number;
+}
+
 export default function AdminMatchesPage() {
   const [matches, setMatches] = useState<MatchWithTeams[]>([]);
   const [teams, setTeams] = useState<Team[]>([]);
@@ -54,6 +62,13 @@ export default function AdminMatchesPage() {
     team2_score: "0",
     match_date: "",
     status: "scheduled",
+  });
+  const [bulkFormData, setBulkFormData] = useState<BulkMatchFormData>({
+    team1_id: "",
+    team2_id: "",
+    match_date: "",
+    status: "scheduled",
+    number_of_matches: 2,
   });
 
   // Fetch data on mount
@@ -99,49 +114,58 @@ export default function AdminMatchesPage() {
     }
   };
 
-  // Add new match
-  const handleAddMatch = async () => {
-    if (!formData.team1_id || !formData.team2_id) {
+  // Add multiple matches (bulk) - same teams, multiple matches
+  const handleAddBulkMatches = async () => {
+    // Validate teams
+    if (!bulkFormData.team1_id || !bulkFormData.team2_id) {
       alert("Please select both teams");
       return;
     }
 
-    if (formData.team1_id === formData.team2_id) {
+    if (bulkFormData.team1_id === bulkFormData.team2_id) {
       alert("Teams must be different");
       return;
     }
 
+    if (!bulkFormData.match_date) {
+      alert("Please select a match date for all matches");
+      return;
+    }
+
     try {
+      // Create multiple matches between the same two teams
+      const matchesToInsert = Array(bulkFormData.number_of_matches)
+        .fill(null)
+        .map(() => ({
+          team1_id: parseInt(bulkFormData.team1_id),
+          team2_id: parseInt(bulkFormData.team2_id),
+          team1_score: 0,
+          team2_score: 0,
+          match_date: bulkFormData.match_date,
+          status: bulkFormData.status,
+        }));
+
       const { error } = await supabase
         .from("matches")
-        .insert([
-          {
-            team1_id: parseInt(formData.team1_id),
-            team2_id: parseInt(formData.team2_id),
-            team1_score: parseInt(formData.team1_score) || 0,
-            team2_score: parseInt(formData.team2_score) || 0,
-            match_date: formData.match_date || new Date().toISOString(),
-            status: formData.status,
-          },
-        ])
+        .insert(matchesToInsert)
         .select();
 
       if (error) throw error;
 
-      setFormData({
+      // Reset form
+      setBulkFormData({
         team1_id: "",
         team2_id: "",
-        team1_score: "0",
-        team2_score: "0",
         match_date: "",
         status: "scheduled",
+        number_of_matches: 2,
       });
       setShowAddForm(false);
       await fetchData();
-      alert("Match added successfully!");
+      alert(`${matchesToInsert.length} matches scheduled successfully between the same teams!`);
     } catch (err) {
-      console.error("Error adding match:", err);
-      alert("Failed to add match. Please try again.");
+      console.error("Error adding matches:", err);
+      alert("Failed to add matches. Please try again.");
     }
   };
 
@@ -238,6 +262,13 @@ export default function AdminMatchesPage() {
       match_date: "",
       status: "scheduled",
     });
+    setBulkFormData({
+      team1_id: "",
+      team2_id: "",
+      match_date: "",
+      status: "scheduled",
+      number_of_matches: 2,
+    });
   };
 
   // Filter matches
@@ -324,7 +355,7 @@ export default function AdminMatchesPage() {
               }}
               className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold transition-colors"
             >
-              + Schedule New Match
+              + Schedule Matches (2-5)
             </button>
           </div>
         </div>
@@ -541,10 +572,153 @@ export default function AdminMatchesPage() {
         </div>
 
         {/* Schedule/Edit Match Form */}
-        {showAddForm && (
+        {showAddForm && !editingMatch && (
           <div className="bg-gray-900/50 backdrop-blur-sm rounded-2xl border border-gray-800 p-6">
             <h3 className="text-xl font-bold text-white mb-4">
-              {editingMatch ? "Edit Match" : "Schedule New Match"}
+              Schedule Match Series (Same Teams)
+            </h3>
+            <p className="text-gray-400 text-sm mb-6">
+              Create 2-5 matches between the same two teams for one match day
+            </p>
+            
+            {/* Team Selection */}
+            <div className="bg-gray-800/50 p-4 rounded-lg mb-6 border border-gray-700">
+              <h4 className="text-lg font-semibold text-white mb-3">Teams</h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-gray-400 text-sm mb-2">
+                    Team 1 <span className="text-red-400">*</span>
+                  </label>
+                  <select
+                    value={bulkFormData.team1_id}
+                    onChange={(e) =>
+                      setBulkFormData({ ...bulkFormData, team1_id: e.target.value })
+                    }
+                    className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-blue-500"
+                  >
+                    <option value="">Select team</option>
+                    {teams.map((team) => (
+                      <option key={team.id} value={team.id}>
+                        {team.logo} {team.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-gray-400 text-sm mb-2">
+                    Team 2 <span className="text-red-400">*</span>
+                  </label>
+                  <select
+                    value={bulkFormData.team2_id}
+                    onChange={(e) =>
+                      setBulkFormData({ ...bulkFormData, team2_id: e.target.value })
+                    }
+                    className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-blue-500"
+                  >
+                    <option value="">Select team</option>
+                    {teams.map((team) => (
+                      <option key={team.id} value={team.id}>
+                        {team.logo} {team.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            {/* Match Day Settings */}
+            <div className="bg-gray-800/50 p-4 rounded-lg mb-6 border border-gray-700">
+              <h4 className="text-lg font-semibold text-white mb-3">Match Day Settings</h4>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-gray-400 text-sm mb-2">
+                    Number of Matches <span className="text-red-400">*</span>
+                  </label>
+                  <select
+                    value={bulkFormData.number_of_matches}
+                    onChange={(e) =>
+                      setBulkFormData({
+                        ...bulkFormData,
+                        number_of_matches: parseInt(e.target.value),
+                      })
+                    }
+                    className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-blue-500"
+                  >
+                    <option value={2}>2 Matches</option>
+                    <option value={3}>3 Matches (Best of 3)</option>
+                    <option value={4}>4 Matches</option>
+                    <option value={5}>5 Matches (Best of 5)</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-gray-400 text-sm mb-2">
+                    Match Date & Time <span className="text-red-400">*</span>
+                  </label>
+                  <input
+                    type="datetime-local"
+                    value={bulkFormData.match_date}
+                    onChange={(e) =>
+                      setBulkFormData({ ...bulkFormData, match_date: e.target.value })
+                    }
+                    className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-gray-400 text-sm mb-2">
+                    Status
+                  </label>
+                  <select
+                    value={bulkFormData.status}
+                    onChange={(e) =>
+                      setBulkFormData({ ...bulkFormData, status: e.target.value })
+                    }
+                    className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-blue-500"
+                  >
+                    <option value="scheduled">Scheduled</option>
+                    <option value="live">Live</option>
+                    <option value="completed">Completed</option>
+                    <option value="cancelled">Cancelled</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            {/* Preview */}
+            {bulkFormData.team1_id && bulkFormData.team2_id && (
+              <div className="bg-blue-900/20 border border-blue-700 rounded-lg p-4 mb-6">
+                <div className="flex items-center space-x-2 text-blue-300">
+                  <span className="text-lg">ℹ️</span>
+                  <span>
+                    This will create <strong>{bulkFormData.number_of_matches} matches</strong> between{" "}
+                    <strong>{teams.find((t) => t.id === parseInt(bulkFormData.team1_id))?.name}</strong> and{" "}
+                    <strong>{teams.find((t) => t.id === parseInt(bulkFormData.team2_id))?.name}</strong>
+                  </span>
+                </div>
+              </div>
+            )}
+
+            <div className="flex space-x-3">
+              <button
+                onClick={handleAddBulkMatches}
+                className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-colors"
+              >
+                Create {bulkFormData.number_of_matches} Matches
+              </button>
+              <button
+                onClick={cancelEdit}
+                className="px-6 py-2 bg-gray-700 hover:bg-gray-600 text-white font-semibold rounded-lg transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Edit Single Match Form */}
+        {showAddForm && editingMatch && (
+          <div className="bg-gray-900/50 backdrop-blur-sm rounded-2xl border border-gray-800 p-6">
+            <h3 className="text-xl font-bold text-white mb-4">
+              Edit Match
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               <div>
@@ -646,10 +820,10 @@ export default function AdminMatchesPage() {
             </div>
             <div className="mt-4 flex space-x-3">
               <button
-                onClick={editingMatch ? handleUpdateMatch : handleAddMatch}
+                onClick={handleUpdateMatch}
                 className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-colors"
               >
-                {editingMatch ? "Update Match" : "Schedule Match"}
+                Update Match
               </button>
               <button
                 onClick={cancelEdit}
