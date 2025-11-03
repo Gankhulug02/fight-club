@@ -178,9 +178,10 @@ export default function Home() {
                     const roundDiff = team.rounds_won - team.rounds_lost;
                     const isPositiveDiff = roundDiff > 0;
                     const totalMatches = team.matches_won + team.matches_lost;
-                    const winRate = totalMatches > 0 
-                      ? ((team.matches_won / totalMatches) * 100).toFixed(0)
-                      : '0';
+                    const winRate =
+                      totalMatches > 0
+                        ? ((team.matches_won / totalMatches) * 100).toFixed(0)
+                        : "0";
 
                     return (
                       <tr
