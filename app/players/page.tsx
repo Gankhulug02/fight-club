@@ -323,9 +323,13 @@ export default function PlayersPage() {
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="text-lg font-bold text-white">
                             {isTopThree ? (
-                              <span className="text-2xl">{rankIcons[index]}</span>
+                              <span className="text-2xl">
+                                {rankIcons[index]}
+                              </span>
                             ) : (
-                              <span className="text-gray-400">#{index + 1}</span>
+                              <span className="text-gray-400">
+                                #{index + 1}
+                              </span>
                             )}
                           </div>
                         </td>
@@ -355,7 +359,9 @@ export default function PlayersPage() {
                           )}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <span className="text-gray-300">{ps.player.role}</span>
+                          <span className="text-gray-300">
+                            {ps.player.role}
+                          </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-center">
                           <span className="text-blue-400 font-semibold">
