@@ -302,6 +302,7 @@ export default function AdminMatchesPage() {
             team1_score: map.team1_score,
             team2_score: map.team2_score,
             winner_team_id: winnerId,
+            map_name: map.map_name || null,
             status: "completed",
           })
           .eq("id", map.id);
@@ -885,7 +886,7 @@ export default function AdminMatchesPage() {
               <h4 className="text-lg font-semibold text-white mb-3">
                 Match Day Settings
               </h4>
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
                   <label className="block text-gray-400 text-sm mb-2">
                     Number of Matches <span className="text-red-400">*</span>
@@ -943,7 +944,7 @@ export default function AdminMatchesPage() {
                     className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-blue-500"
                   />
                 </div>
-                <div>
+                {/* <div>
                   <label className="block text-gray-400 text-sm mb-2">
                     Status
                   </label>
@@ -962,7 +963,7 @@ export default function AdminMatchesPage() {
                     <option value="completed">Completed</option>
                     <option value="cancelled">Cancelled</option>
                   </select>
-                </div>
+                </div> */}
               </div>
             </div>
 
@@ -1159,6 +1160,28 @@ export default function AdminMatchesPage() {
                             )?.name
                           : "TBD"}
                       </span>
+                    </div>
+                    <div className="mb-4">
+                      <label className="block text-gray-400 text-sm mb-2">
+                        Map Name
+                      </label>
+                      <select
+                        value={map.map_name || ""}
+                        onChange={(e) => {
+                          const newMaps = [...editingMaps];
+                          newMaps[index].map_name = e.target.value;
+                          setEditingMaps(newMaps);
+                        }}
+                        className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-blue-500"
+                      >
+                        <option value="">Select a map</option>
+                        <option value="Ancient">Ancient</option>
+                        <option value="Dust 2">Dust 2</option>
+                        <option value="Inferno">Inferno</option>
+                        <option value="Mirage">Mirage</option>
+                        <option value="Nuke">Nuke</option>
+                        <option value="Overpass">Overpass</option>
+                      </select>
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                       <div>
