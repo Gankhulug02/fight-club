@@ -55,6 +55,16 @@ interface PlayerStats {
   maps_played: number;
 }
 
+interface MatchMap {
+  id: number;
+  match_id: number;
+  map_number: number;
+  team1_score: number;
+  team2_score: number;
+  winner_team_id: number | null;
+  status: string;
+}
+
 export default function TeamDetailPage({
   params,
 }: {
@@ -111,6 +121,13 @@ export default function TeamDetailPage({
 
       if (allMatchesError) throw allMatchesError;
 
+      // Fetch all match maps to get round scores
+      const { data: allMapsData, error: allMapsError } = await supabase
+        .from("match_maps")
+        .select("*");
+
+      if (allMapsError) throw allMapsError;
+
       // Calculate stats for all teams to determine rank
       const teamsWithStats = (allTeamsData || []).map((t: Team) => {
         const teamMatches = (allMatchesData || []).filter(
@@ -130,8 +147,17 @@ export default function TeamDetailPage({
           if (teamScore > opponentScore) matches_won++;
           else if (teamScore < opponentScore) matches_lost++;
 
-          rounds_won += teamScore;
-          rounds_lost += opponentScore;
+          // Get all maps for this match and sum round scores
+          const matchMaps = (allMapsData || []).filter(
+            (map: MatchMap) => map.match_id === match.id
+          );
+
+          matchMaps.forEach((map: MatchMap) => {
+            const mapRoundsWon = isTeam1 ? map.team1_score : map.team2_score;
+            const mapRoundsLost = isTeam1 ? map.team2_score : map.team1_score;
+            rounds_won += mapRoundsWon;
+            rounds_lost += mapRoundsLost;
+          });
         });
 
         return {
