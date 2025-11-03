@@ -471,92 +471,111 @@ export default function AdminPlayersPage() {
           </div>
         </div>
 
-        {/* Add/Edit Player Form */}
+        {/* Add/Edit Player Modal */}
         {showAddForm && (
-          <div className="bg-gray-900/50 backdrop-blur-sm rounded-2xl border border-gray-800 p-6">
-            <h3 className="text-xl font-bold text-white mb-4">
-              {editingPlayer ? "Edit Player" : "Add New Player"}
-            </h3>
-            <p className="text-gray-400 text-sm mb-4">
-              {editingPlayer
-                ? "Update player information."
-                : "Create a new player. Statistics will be automatically calculated from match results."}
-            </p>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-gray-400 text-sm mb-2">
-                  Player Name <span className="text-red-400">*</span>
-                </label>
-                <input
-                  type="text"
-                  placeholder="Enter player name"
-                  value={formData.name}
-                  onChange={(e) =>
-                    setFormData({ ...formData, name: e.target.value })
-                  }
-                  className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-blue-500"
-                />
-              </div>
-              <div>
-                <label className="block text-gray-400 text-sm mb-2">
-                  Team <span className="text-red-400">*</span>
-                </label>
-                <select
-                  value={formData.team_id}
-                  onChange={(e) =>
-                    setFormData({ ...formData, team_id: e.target.value })
-                  }
-                  className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-blue-500"
+          <div
+            className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+            onClick={cancelEdit}
+          >
+            <div
+              className="bg-gray-900 rounded-2xl border border-gray-800 p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-2xl font-bold text-white">
+                  {editingPlayer ? "Edit Player" : "Add New Player"}
+                </h3>
+                <button
+                  onClick={cancelEdit}
+                  className="text-gray-400 hover:text-white transition-colors text-2xl leading-none"
+                  aria-label="Close modal"
                 >
-                  <option value="">Select a team</option>
-                  {teams.map((team) => (
-                    <option key={team.id} value={team.id}>
-                      {team.logo} {team.name}
-                    </option>
-                  ))}
-                </select>
+                  ×
+                </button>
               </div>
-              <div>
-                <label className="block text-gray-400 text-sm mb-2">Role</label>
-                <input
-                  type="text"
-                  placeholder="e.g., Duelist, Controller, IGL"
-                  value={formData.role}
-                  onChange={(e) =>
-                    setFormData({ ...formData, role: e.target.value })
-                  }
-                  className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-blue-500"
-                />
+              <p className="text-gray-400 text-sm mb-6">
+                {editingPlayer
+                  ? "Update player information."
+                  : "Create a new player. Statistics will be automatically calculated from match results."}
+              </p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-gray-400 text-sm mb-2">
+                    Player Name <span className="text-red-400">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Enter player name"
+                    value={formData.name}
+                    onChange={(e) =>
+                      setFormData({ ...formData, name: e.target.value })
+                    }
+                    className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-gray-400 text-sm mb-2">
+                    Team <span className="text-red-400">*</span>
+                  </label>
+                  <select
+                    value={formData.team_id}
+                    onChange={(e) =>
+                      setFormData({ ...formData, team_id: e.target.value })
+                    }
+                    className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-blue-500"
+                  >
+                    <option value="">Select a team</option>
+                    {teams.map((team) => (
+                      <option key={team.id} value={team.id}>
+                        {team.logo} {team.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-gray-400 text-sm mb-2">
+                    Role
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g., Duelist, Controller, IGL"
+                    value={formData.role}
+                    onChange={(e) =>
+                      setFormData({ ...formData, role: e.target.value })
+                    }
+                    className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-gray-400 text-sm mb-2">
+                    Avatar Emoji
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="👤"
+                    value={formData.avatar}
+                    onChange={(e) =>
+                      setFormData({ ...formData, avatar: e.target.value })
+                    }
+                    maxLength={2}
+                    className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-blue-500"
+                  />
+                </div>
               </div>
-              <div>
-                <label className="block text-gray-400 text-sm mb-2">
-                  Avatar Emoji
-                </label>
-                <input
-                  type="text"
-                  placeholder="👤"
-                  value={formData.avatar}
-                  onChange={(e) =>
-                    setFormData({ ...formData, avatar: e.target.value })
-                  }
-                  maxLength={2}
-                  className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-blue-500"
-                />
+              <div className="mt-6 flex space-x-3">
+                <button
+                  onClick={editingPlayer ? handleUpdatePlayer : handleAddPlayer}
+                  className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-colors"
+                >
+                  {editingPlayer ? "Update Player" : "Create Player"}
+                </button>
+                <button
+                  onClick={cancelEdit}
+                  className="px-6 py-2 bg-gray-700 hover:bg-gray-600 text-white font-semibold rounded-lg transition-colors"
+                >
+                  Cancel
+                </button>
               </div>
-            </div>
-            <div className="mt-4 flex space-x-3">
-              <button
-                onClick={editingPlayer ? handleUpdatePlayer : handleAddPlayer}
-                className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-colors"
-              >
-                {editingPlayer ? "Update Player" : "Create Player"}
-              </button>
-              <button
-                onClick={cancelEdit}
-                className="px-6 py-2 bg-gray-700 hover:bg-gray-600 text-white font-semibold rounded-lg transition-colors"
-              >
-                Cancel
-              </button>
             </div>
           </div>
         )}
