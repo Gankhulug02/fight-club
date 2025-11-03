@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 interface Team {
   id: number;
   name: string;
@@ -91,12 +93,15 @@ export default function Home() {
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="flex items-center space-x-3">
+                        <Link
+                          href={`/teams/${team.id}`}
+                          className="flex items-center space-x-3 hover:opacity-80 transition-opacity"
+                        >
                           <div className="text-3xl">{team.logo}</div>
-                          <div className="text-lg font-semibold text-white">
+                          <div className="text-lg font-semibold text-white hover:text-blue-400 transition-colors">
                             {team.name}
                           </div>
-                        </div>
+                        </Link>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-center">
                         <span className="text-green-400 font-semibold text-lg">
