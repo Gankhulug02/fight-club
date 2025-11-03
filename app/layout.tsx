@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import Link from "next/link";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -44,30 +45,30 @@ export default function RootLayout({
 
               {/* Navigation Links */}
               <div className="hidden md:flex items-center space-x-8">
-                <a
-                  href="#"
+                <Link
+                  href="/"
                   className="text-gray-300 hover:text-white transition-colors duration-200 text-sm font-medium"
                 >
                   Leaderboard
-                </a>
-                <a
-                  href="#"
+                </Link>
+                {/* <Link
+                  href="/teams"
                   className="text-gray-300 hover:text-white transition-colors duration-200 text-sm font-medium"
                 >
                   Teams
-                </a>
-                <a
-                  href="#"
+                </Link> */}
+                <Link
+                  href="/matches"
                   className="text-gray-300 hover:text-white transition-colors duration-200 text-sm font-medium"
                 >
                   Matches
-                </a>
-                <a
-                  href="#"
+                </Link>
+                {/* <Link
+                  href="/schedule"
                   className="text-gray-300 hover:text-white transition-colors duration-200 text-sm font-medium"
                 >
                   Schedule
-                </a>
+                </Link> */}
               </div>
 
               {/* Live Indicator & Admin */}

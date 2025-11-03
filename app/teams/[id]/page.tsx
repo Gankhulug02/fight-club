@@ -1,174 +1,224 @@
-import Link from "next/link";
+"use client";
 
-interface Player {
+import { useState, useEffect } from "react";
+import Link from "next/link";
+import { supabase } from "@/lib/supabase";
+
+interface Team {
   id: number;
   name: string;
-  role: string;
-  kills: number;
-  deaths: number;
-  assists: number;
-  gamesPlayed: number;
+  logo: string;
+  created_at?: string;
+  updated_at?: string;
 }
 
 interface Match {
   id: number;
-  opponent: string;
-  opponentLogo: string;
-  date: string;
-  result: "win" | "loss";
-  score: string;
-  map: string;
+  team1_id: number;
+  team2_id: number;
+  team1_score: number;
+  team2_score: number;
+  match_date: string;
+  status: string;
 }
 
-interface TeamData {
-  id: number;
-  name: string;
-  logo: string;
+interface MatchWithOpponent extends Match {
+  opponent?: Team;
+  isTeam1: boolean;
+  result: "win" | "loss" | "draw";
+  teamScore: number;
+  opponentScore: number;
+}
+
+interface TeamStats {
+  matches_won: number;
+  matches_lost: number;
+  rounds_won: number;
+  rounds_lost: number;
   rank: number;
-  roundsWon: number;
-  roundsLost: number;
-  matchesWon: number;
-  matchesLost: number;
-  players: Player[];
-  matches: Match[];
 }
 
-// Sample team data - in a real app, this would come from an API or database
-const getTeamData = (id: string): TeamData => {
-  const teams: { [key: string]: TeamData } = {
-    "1": {
-      id: 1,
-      name: "FaZe Clan",
-      logo: "🔥",
-      rank: 1,
-      roundsWon: 156,
-      roundsLost: 98,
-      matchesWon: 12,
-      matchesLost: 3,
-      players: [
-        {
-          id: 1,
-          name: "karrigan",
-          role: "IGL",
-          kills: 245,
-          deaths: 198,
-          assists: 87,
-          gamesPlayed: 15,
-        },
-        {
-          id: 2,
-          name: "rain",
-          role: "Rifler",
-          kills: 278,
-          deaths: 203,
-          assists: 65,
-          gamesPlayed: 15,
-        },
-        {
-          id: 3,
-          name: "Twistzz",
-          role: "Rifler",
-          kills: 289,
-          deaths: 195,
-          assists: 72,
-          gamesPlayed: 15,
-        },
-        {
-          id: 4,
-          name: "ropz",
-          role: "Support",
-          kills: 264,
-          deaths: 189,
-          assists: 94,
-          gamesPlayed: 15,
-        },
-        {
-          id: 5,
-          name: "frozen",
-          role: "AWPer",
-          kills: 312,
-          deaths: 178,
-          assists: 58,
-          gamesPlayed: 15,
-        },
-      ],
-      matches: [
-        {
-          id: 1,
-          opponent: "Natus Vincere",
-          opponentLogo: "⭐",
-          date: "Nov 2, 2025",
-          result: "win",
-          score: "16-14",
-          map: "Mirage",
-        },
-        {
-          id: 2,
-          opponent: "Vitality",
-          opponentLogo: "🐝",
-          date: "Nov 1, 2025",
-          result: "win",
-          score: "16-12",
-          map: "Inferno",
-        },
-        {
-          id: 3,
-          opponent: "G2 Esports",
-          opponentLogo: "🎮",
-          date: "Oct 31, 2025",
-          result: "loss",
-          score: "13-16",
-          map: "Ancient",
-        },
-        {
-          id: 4,
-          opponent: "Team Liquid",
-          opponentLogo: "🐴",
-          date: "Oct 30, 2025",
-          result: "win",
-          score: "16-9",
-          map: "Dust II",
-        },
-        {
-          id: 5,
-          opponent: "MOUZ",
-          opponentLogo: "🐭",
-          date: "Oct 29, 2025",
-          result: "win",
-          score: "16-11",
-          map: "Nuke",
-        },
-      ],
-    },
+export default function TeamDetailPage({ params }: { params: { id: string } }) {
+  const [team, setTeam] = useState<Team | null>(null);
+  const [stats, setStats] = useState<TeamStats>({
+    matches_won: 0,
+    matches_lost: 0,
+    rounds_won: 0,
+    rounds_lost: 0,
+    rank: 0,
+  });
+  const [matches, setMatches] = useState<MatchWithOpponent[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetchTeamData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [params.id]);
+
+  const fetchTeamData = async () => {
+    try {
+      setLoading(true);
+      const teamId = parseInt(params.id);
+
+      // Fetch the specific team
+      const { data: teamData, error: teamError } = await supabase
+        .from("teams")
+        .select("*")
+        .eq("id", teamId)
+        .single();
+
+      if (teamError) throw teamError;
+      if (!teamData) throw new Error("Team not found");
+
+      setTeam(teamData);
+
+      // Fetch all teams to calculate rank
+      const { data: allTeamsData, error: allTeamsError } = await supabase
+        .from("teams")
+        .select("*");
+
+      if (allTeamsError) throw allTeamsError;
+
+      // Fetch all completed matches
+      const { data: allMatchesData, error: allMatchesError } = await supabase
+        .from("matches")
+        .select("*")
+        .eq("status", "completed");
+
+      if (allMatchesError) throw allMatchesError;
+
+      // Calculate stats for all teams to determine rank
+      const teamsWithStats = (allTeamsData || []).map((t: Team) => {
+        const teamMatches = (allMatchesData || []).filter(
+          (m: Match) => m.team1_id === t.id || m.team2_id === t.id
+        );
+
+        let matches_won = 0;
+        let matches_lost = 0;
+        let rounds_won = 0;
+        let rounds_lost = 0;
+
+        teamMatches.forEach((match: Match) => {
+          const isTeam1 = match.team1_id === t.id;
+          const teamScore = isTeam1 ? match.team1_score : match.team2_score;
+          const opponentScore = isTeam1 ? match.team2_score : match.team1_score;
+
+          if (teamScore > opponentScore) matches_won++;
+          else if (teamScore < opponentScore) matches_lost++;
+
+          rounds_won += teamScore;
+          rounds_lost += opponentScore;
+        });
+
+        return {
+          ...t,
+          matches_won,
+          matches_lost,
+          rounds_won,
+          rounds_lost,
+          round_diff: rounds_won - rounds_lost,
+        };
+      });
+
+      // Sort by round difference to get rank
+      teamsWithStats.sort((a, b) => b.round_diff - a.round_diff);
+      const currentTeamStats = teamsWithStats.find((t) => t.id === teamId);
+      const rank = teamsWithStats.findIndex((t) => t.id === teamId) + 1;
+
+      if (currentTeamStats) {
+        setStats({
+          matches_won: currentTeamStats.matches_won,
+          matches_lost: currentTeamStats.matches_lost,
+          rounds_won: currentTeamStats.rounds_won,
+          rounds_lost: currentTeamStats.rounds_lost,
+          rank,
+        });
+      }
+
+      // Fetch matches for this team with opponent details
+      const { data: teamMatchesData, error: teamMatchesError } = await supabase
+        .from("matches")
+        .select("*")
+        .or(`team1_id.eq.${teamId},team2_id.eq.${teamId}`)
+        .eq("status", "completed")
+        .order("match_date", { ascending: false })
+        .limit(10);
+
+      if (teamMatchesError) throw teamMatchesError;
+
+      // Enrich matches with opponent data
+      const matchesWithOpponents = await Promise.all(
+        (teamMatchesData || []).map(async (match: Match) => {
+          const isTeam1 = match.team1_id === teamId;
+          const opponentId = isTeam1 ? match.team2_id : match.team1_id;
+          const teamScore = isTeam1 ? match.team1_score : match.team2_score;
+          const opponentScore = isTeam1 ? match.team2_score : match.team1_score;
+
+          const { data: opponentData } = await supabase
+            .from("teams")
+            .select("*")
+            .eq("id", opponentId)
+            .single();
+
+          let result: "win" | "loss" | "draw";
+          if (teamScore > opponentScore) result = "win";
+          else if (teamScore < opponentScore) result = "loss";
+          else result = "draw";
+
+          return {
+            ...match,
+            opponent: opponentData,
+            isTeam1,
+            result,
+            teamScore,
+            opponentScore,
+          };
+        })
+      );
+
+      setMatches(matchesWithOpponents);
+      setError(null);
+    } catch (err) {
+      console.error("Error fetching team data:", err);
+      setError("Failed to load team data. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   };
 
-  return (
-    teams[id] || {
-      id: 1,
-      name: "FaZe Clan",
-      logo: "🔥",
-      rank: 1,
-      roundsWon: 156,
-      roundsLost: 98,
-      matchesWon: 12,
-      matchesLost: 3,
-      players: [],
-      matches: [],
-    }
-  );
-};
+  if (loading) {
+    return (
+      <div className="bg-gradient-to-br from-black via-gray-950 to-black min-h-screen p-8 flex items-center justify-center">
+        <div className="text-white text-xl">Loading team data...</div>
+      </div>
+    );
+  }
 
-export default function TeamDetailPage({
-  params,
-}: {
-  params: { id: string };
-}) {
-  const team = getTeamData(params.id);
-  const roundDiff = team.roundsWon - team.roundsLost;
-  const winRate = (
-    (team.matchesWon / (team.matchesWon + team.matchesLost)) *
-    100
-  ).toFixed(1);
+  if (error || !team) {
+    return (
+      <div className="bg-gradient-to-br from-black via-gray-950 to-black min-h-screen p-8 flex items-center justify-center">
+        <div className="text-center space-y-4">
+          <div className="text-red-400 text-xl">
+            {error || "Team not found"}
+          </div>
+          <Link
+            href="/"
+            className="inline-block px-6 py-3 bg-gray-800 hover:bg-gray-700 text-white rounded-lg transition-colors"
+          >
+            Back to Leaderboard
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  const roundDiff = stats.rounds_won - stats.rounds_lost;
+  const totalMatches = stats.matches_won + stats.matches_lost;
+  const winRate =
+    totalMatches > 0
+      ? ((stats.matches_won / totalMatches) * 100).toFixed(1)
+      : "0.0";
 
   return (
     <div className="bg-gradient-to-br from-black via-gray-950 to-black min-h-screen p-8">
@@ -184,11 +234,9 @@ export default function TeamDetailPage({
                 </h1>
                 <div className="flex items-center space-x-4">
                   <span className="px-3 py-1 bg-yellow-500/20 text-yellow-400 rounded-full text-sm font-semibold">
-                    Rank #{team.rank}
+                    Rank #{stats.rank || "N/A"}
                   </span>
-                  <span className="text-gray-400 text-sm">
-                    Season 2025
-                  </span>
+                  <span className="text-gray-400 text-sm">Season 2025</span>
                 </div>
               </div>
             </div>
@@ -197,13 +245,13 @@ export default function TeamDetailPage({
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div className="text-center">
                 <div className="text-2xl font-bold text-green-400">
-                  {team.matchesWon}
+                  {stats.matches_won}
                 </div>
                 <div className="text-xs text-gray-400 uppercase">Wins</div>
               </div>
               <div className="text-center">
                 <div className="text-2xl font-bold text-red-400">
-                  {team.matchesLost}
+                  {stats.matches_lost}
                 </div>
                 <div className="text-xs text-gray-400 uppercase">Losses</div>
               </div>
@@ -239,100 +287,15 @@ export default function TeamDetailPage({
             </p>
           </div>
 
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="bg-black/50 border-b border-gray-800">
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">
-                    Player
-                  </th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">
-                    Role
-                  </th>
-                  <th className="px-6 py-4 text-center text-xs font-semibold text-gray-400 uppercase tracking-wider">
-                    Games
-                  </th>
-                  <th className="px-6 py-4 text-center text-xs font-semibold text-gray-400 uppercase tracking-wider">
-                    Kills
-                  </th>
-                  <th className="px-6 py-4 text-center text-xs font-semibold text-gray-400 uppercase tracking-wider">
-                    Deaths
-                  </th>
-                  <th className="px-6 py-4 text-center text-xs font-semibold text-gray-400 uppercase tracking-wider">
-                    Assists
-                  </th>
-                  <th className="px-6 py-4 text-center text-xs font-semibold text-gray-400 uppercase tracking-wider">
-                    K/D Ratio
-                  </th>
-                  <th className="px-6 py-4 text-center text-xs font-semibold text-gray-400 uppercase tracking-wider">
-                    K/D/A
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-800">
-                {team.players.map((player) => {
-                  const kdRatio = (player.kills / player.deaths).toFixed(2);
-                  const kda = (
-                    (player.kills + player.assists) /
-                    player.deaths
-                  ).toFixed(2);
-
-                  return (
-                    <tr
-                      key={player.id}
-                      className="hover:bg-gray-800/30 transition-colors duration-150"
-                    >
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-lg font-semibold text-white">
-                          {player.name}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className="px-2 py-1 bg-blue-500/20 text-blue-400 rounded text-sm font-medium">
-                          {player.role}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-center">
-                        <span className="text-gray-300 font-medium">
-                          {player.gamesPlayed}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-center">
-                        <span className="text-green-400 font-semibold text-lg">
-                          {player.kills}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-center">
-                        <span className="text-red-400 font-semibold text-lg">
-                          {player.deaths}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-center">
-                        <span className="text-blue-400 font-semibold text-lg">
-                          {player.assists}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-center">
-                        <span
-                          className={`font-bold ${
-                            parseFloat(kdRatio) >= 1.0
-                              ? "text-green-400"
-                              : "text-yellow-400"
-                          }`}
-                        >
-                          {kdRatio}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-center">
-                        <span className="text-purple-400 font-bold">
-                          {kda}
-                        </span>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+          <div className="p-12 text-center">
+            <div className="text-6xl mb-4">👥</div>
+            <h3 className="text-xl font-semibold text-gray-400 mb-2">
+              Player Management Coming Soon
+            </h3>
+            <p className="text-gray-500">
+              Player roster and statistics will be available once the player
+              management system is implemented.
+            </p>
           </div>
         </div>
 
@@ -341,76 +304,98 @@ export default function TeamDetailPage({
           <div className="p-6 border-b border-gray-800">
             <h2 className="text-2xl font-bold text-white">Match History</h2>
             <p className="text-gray-400 text-sm mt-1">
-              Recent matches and results
+              Recent matches and results (last 10)
             </p>
           </div>
 
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="bg-black/50 border-b border-gray-800">
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">
-                    Date
-                  </th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">
-                    Opponent
-                  </th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">
-                    Map
-                  </th>
-                  <th className="px-6 py-4 text-center text-xs font-semibold text-gray-400 uppercase tracking-wider">
-                    Score
-                  </th>
-                  <th className="px-6 py-4 text-center text-xs font-semibold text-gray-400 uppercase tracking-wider">
-                    Result
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-800">
-                {team.matches.map((match) => (
-                  <tr
-                    key={match.id}
-                    className="hover:bg-gray-800/30 transition-colors duration-150"
-                  >
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="text-gray-400 text-sm">
-                        {match.date}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center space-x-3">
-                        <span className="text-2xl">{match.opponentLogo}</span>
-                        <span className="text-white font-semibold">
-                          {match.opponent}
-                        </span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="text-gray-300 font-medium">
-                        {match.map}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-center">
-                      <span className="text-white font-bold text-lg">
-                        {match.score}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-center">
-                      {match.result === "win" ? (
-                        <span className="inline-flex items-center px-3 py-1 rounded-full bg-green-500/20 text-green-400 font-bold uppercase text-sm">
-                          Win
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center px-3 py-1 rounded-full bg-red-500/20 text-red-400 font-bold uppercase text-sm">
-                          Loss
-                        </span>
-                      )}
-                    </td>
+          {matches.length === 0 ? (
+            <div className="p-12 text-center">
+              <div className="text-6xl mb-4">🏆</div>
+              <h3 className="text-xl font-semibold text-gray-400 mb-2">
+                No Match History
+              </h3>
+              <p className="text-gray-500">
+                This team hasn&apos;t played any completed matches yet.
+              </p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="bg-black/50 border-b border-gray-800">
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                      Date
+                    </th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                      Opponent
+                    </th>
+                    <th className="px-6 py-4 text-center text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                      Score
+                    </th>
+                    <th className="px-6 py-4 text-center text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                      Result
+                    </th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody className="divide-y divide-gray-800">
+                  {matches.map((match) => {
+                    const matchDate = new Date(match.match_date);
+                    const formattedDate = matchDate.toLocaleDateString(
+                      "en-US",
+                      {
+                        month: "short",
+                        day: "numeric",
+                        year: "numeric",
+                      }
+                    );
+
+                    return (
+                      <tr
+                        key={match.id}
+                        className="hover:bg-gray-800/30 transition-colors duration-150"
+                      >
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className="text-gray-400 text-sm">
+                            {formattedDate}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="flex items-center space-x-3">
+                            <span className="text-2xl">
+                              {match.opponent?.logo || "❓"}
+                            </span>
+                            <span className="text-white font-semibold">
+                              {match.opponent?.name || "Unknown Team"}
+                            </span>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-center">
+                          <span className="text-white font-bold text-lg">
+                            {match.teamScore} - {match.opponentScore}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-center">
+                          {match.result === "win" ? (
+                            <span className="inline-flex items-center px-3 py-1 rounded-full bg-green-500/20 text-green-400 font-bold uppercase text-sm">
+                              Win
+                            </span>
+                          ) : match.result === "loss" ? (
+                            <span className="inline-flex items-center px-3 py-1 rounded-full bg-red-500/20 text-red-400 font-bold uppercase text-sm">
+                              Loss
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center px-3 py-1 rounded-full bg-gray-500/20 text-gray-400 font-bold uppercase text-sm">
+                              Draw
+                            </span>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
 
         {/* Back Button */}
@@ -427,4 +412,3 @@ export default function TeamDetailPage({
     </div>
   );
 }
-
