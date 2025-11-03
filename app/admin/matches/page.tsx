@@ -12,6 +12,40 @@ interface Team {
   updated_at?: string;
 }
 
+interface Player {
+  id: number;
+  name: string;
+  team_id: number;
+  role?: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
+interface MapPlayerStats {
+  id?: number;
+  map_id: number;
+  player_id: number;
+  team_id: number;
+  kills: number;
+  assists: number;
+  deaths: number;
+  player?: Player;
+}
+
+interface MatchMap {
+  id: number;
+  match_id: number;
+  map_number: number;
+  team1_score: number;
+  team2_score: number;
+  winner_team_id: number | null;
+  map_name?: string;
+  status: "scheduled" | "live" | "completed" | "cancelled";
+  created_at?: string;
+  updated_at?: string;
+  player_stats?: MapPlayerStats[];
+}
+
 interface Match {
   id: number;
   team1_id: number;
@@ -19,6 +53,7 @@ interface Match {
   team1_score: number;
   team2_score: number;
   match_date: string;
+  num_maps: number;
   status: "scheduled" | "live" | "completed" | "cancelled";
   created_at?: string;
   updated_at?: string;
@@ -27,6 +62,7 @@ interface Match {
 interface MatchWithTeams extends Match {
   team1?: Team;
   team2?: Team;
+  maps?: MatchMap[];
 }
 
 interface MatchFormData {
@@ -44,11 +80,13 @@ interface BulkMatchFormData {
   match_date: string;
   status: string;
   number_of_matches: number;
+  maps_per_match: number;
 }
 
 export default function AdminMatchesPage() {
   const [matches, setMatches] = useState<MatchWithTeams[]>([]);
   const [teams, setTeams] = useState<Team[]>([]);
+  const [players, setPlayers] = useState<Player[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
@@ -68,8 +106,10 @@ export default function AdminMatchesPage() {
     team2_id: "",
     match_date: "",
     status: "scheduled",
-    number_of_matches: 2,
+    number_of_matches: 1,
+    maps_per_match: 3,
   });
+  const [editingMaps, setEditingMaps] = useState<MatchMap[]>([]);
 
   // Fetch data on mount
   useEffect(() => {
@@ -89,6 +129,15 @@ export default function AdminMatchesPage() {
       if (teamsError) throw teamsError;
       setTeams(teamsData || []);
 
+      // Fetch players
+      const { data: playersData, error: playersError } = await supabase
+        .from("players")
+        .select("*")
+        .order("name");
+
+      if (playersError) throw playersError;
+      setPlayers(playersData || []);
+
       // Fetch matches
       const { data: matchesData, error: matchesError } = await supabase
         .from("matches")
@@ -97,11 +146,38 @@ export default function AdminMatchesPage() {
 
       if (matchesError) throw matchesError;
 
-      // Combine matches with team data
+      // Fetch all match maps
+      const { data: mapsData, error: mapsError } = await supabase
+        .from("match_maps")
+        .select("*")
+        .order("map_number");
+
+      if (mapsError) throw mapsError;
+
+      // Fetch all player stats
+      const { data: playerStatsData, error: playerStatsError } = await supabase
+        .from("map_player_stats")
+        .select("*");
+
+      if (playerStatsError) throw playerStatsError;
+
+      // Combine maps with player stats
+      const mapsWithStats = (mapsData || []).map((map) => ({
+        ...map,
+        player_stats: (playerStatsData || [])
+          .filter((stat) => stat.map_id === map.id)
+          .map((stat) => ({
+            ...stat,
+            player: playersData?.find((p) => p.id === stat.player_id),
+          })),
+      }));
+
+      // Combine matches with team data and maps
       const matchesWithTeams = (matchesData || []).map((match) => ({
         ...match,
         team1: teamsData?.find((t) => t.id === match.team1_id),
         team2: teamsData?.find((t) => t.id === match.team2_id),
+        maps: mapsWithStats.filter((map) => map.match_id === match.id),
       }));
 
       setMatches(matchesWithTeams);
@@ -142,15 +218,36 @@ export default function AdminMatchesPage() {
           team1_score: 0,
           team2_score: 0,
           match_date: bulkFormData.match_date,
+          num_maps: bulkFormData.maps_per_match,
           status: bulkFormData.status,
         }));
 
-      const { error } = await supabase
+      const { data: createdMatches, error: matchError } = await supabase
         .from("matches")
         .insert(matchesToInsert)
         .select();
 
-      if (error) throw error;
+      if (matchError) throw matchError;
+
+      // Create the specified number of maps for each match
+      const mapsToInsert = (createdMatches || []).flatMap((match) =>
+        Array(bulkFormData.maps_per_match)
+          .fill(null)
+          .map((_, index) => ({
+            match_id: match.id,
+            map_number: index + 1,
+            team1_score: 0,
+            team2_score: 0,
+            winner_team_id: null,
+            status: bulkFormData.status,
+          }))
+      );
+
+      const { error: mapsError } = await supabase
+        .from("match_maps")
+        .insert(mapsToInsert);
+
+      if (mapsError) throw mapsError;
 
       // Reset form
       setBulkFormData({
@@ -158,11 +255,14 @@ export default function AdminMatchesPage() {
         team2_id: "",
         match_date: "",
         status: "scheduled",
-        number_of_matches: 2,
+        number_of_matches: 1,
+        maps_per_match: 3,
       });
       setShowAddForm(false);
       await fetchData();
-      alert(`${matchesToInsert.length} matches scheduled successfully between the same teams!`);
+      alert(
+        `${matchesToInsert.length} matches scheduled successfully (${mapsToInsert.length} maps total)!`
+      );
     } catch (err) {
       console.error("Error adding matches:", err);
       alert("Failed to add matches. Please try again.");
@@ -174,21 +274,76 @@ export default function AdminMatchesPage() {
     if (!editingMatch) return;
 
     try {
-      const { error } = await supabase
+      const { error: matchError } = await supabase
         .from("matches")
         .update({
           team1_id: parseInt(formData.team1_id),
           team2_id: parseInt(formData.team2_id),
-          team1_score: parseInt(formData.team1_score),
-          team2_score: parseInt(formData.team2_score),
           match_date: formData.match_date,
+          num_maps: editingMaps.length,
           status: formData.status,
         })
         .eq("id", editingMatch.id);
 
-      if (error) throw error;
+      if (matchError) throw matchError;
+
+      // Update each map's scores and determine winner
+      for (const map of editingMaps) {
+        const winnerId =
+          map.team1_score > map.team2_score
+            ? parseInt(formData.team1_id)
+            : map.team2_score > map.team1_score
+            ? parseInt(formData.team2_id)
+            : null;
+
+        const { error: mapError } = await supabase
+          .from("match_maps")
+          .update({
+            team1_score: map.team1_score,
+            team2_score: map.team2_score,
+            winner_team_id: winnerId,
+            status: map.status,
+          })
+          .eq("id", map.id);
+
+        if (mapError) throw mapError;
+
+        // Update or insert player stats for this map
+        if (map.player_stats && map.player_stats.length > 0) {
+          for (const playerStat of map.player_stats) {
+            if (playerStat.id) {
+              // Update existing stat
+              const { error: statError } = await supabase
+                .from("map_player_stats")
+                .update({
+                  kills: playerStat.kills,
+                  assists: playerStat.assists,
+                  deaths: playerStat.deaths,
+                })
+                .eq("id", playerStat.id);
+
+              if (statError) throw statError;
+            } else {
+              // Insert new stat
+              const { error: statError } = await supabase
+                .from("map_player_stats")
+                .insert({
+                  map_id: map.id,
+                  player_id: playerStat.player_id,
+                  team_id: playerStat.team_id,
+                  kills: playerStat.kills,
+                  assists: playerStat.assists,
+                  deaths: playerStat.deaths,
+                });
+
+              if (statError) throw statError;
+            }
+          }
+        }
+      }
 
       setEditingMatch(null);
+      setEditingMaps([]);
       setFormData({
         team1_id: "",
         team2_id: "",
@@ -199,7 +354,7 @@ export default function AdminMatchesPage() {
       });
       setShowAddForm(false);
       await fetchData();
-      alert("Match updated successfully!");
+      alert("Match, maps, and player stats updated successfully!");
     } catch (err) {
       console.error("Error updating match:", err);
       alert("Failed to update match. Please try again.");
@@ -239,6 +394,60 @@ export default function AdminMatchesPage() {
       match_date: match.match_date,
       status: match.status,
     });
+
+    // Load map data for editing and initialize player stats if needed
+    const mapsWithStats = (match.maps || []).map((map) => {
+      // Get players for both teams
+      const team1Players = players
+        .filter((p) => p.team_id === match.team1_id)
+        .slice(0, 5);
+      const team2Players = players
+        .filter((p) => p.team_id === match.team2_id)
+        .slice(0, 5);
+
+      // Initialize player stats if they don't exist
+      const existingStats = map.player_stats || [];
+      const allPlayerStats: MapPlayerStats[] = [];
+
+      // Add team 1 players
+      team1Players.forEach((player) => {
+        const existing = existingStats.find((s) => s.player_id === player.id);
+        allPlayerStats.push(
+          existing || {
+            map_id: map.id,
+            player_id: player.id,
+            team_id: match.team1_id,
+            kills: 0,
+            assists: 0,
+            deaths: 0,
+            player,
+          }
+        );
+      });
+
+      // Add team 2 players
+      team2Players.forEach((player) => {
+        const existing = existingStats.find((s) => s.player_id === player.id);
+        allPlayerStats.push(
+          existing || {
+            map_id: map.id,
+            player_id: player.id,
+            team_id: match.team2_id,
+            kills: 0,
+            assists: 0,
+            deaths: 0,
+            player,
+          }
+        );
+      });
+
+      return {
+        ...map,
+        player_stats: allPlayerStats,
+      };
+    });
+
+    setEditingMaps(mapsWithStats);
     setShowAddForm(true);
 
     // Scroll to bottom after a brief delay to allow form to render
@@ -254,6 +463,7 @@ export default function AdminMatchesPage() {
   const cancelEdit = () => {
     setEditingMatch(null);
     setShowAddForm(false);
+    setEditingMaps([]);
     setFormData({
       team1_id: "",
       team2_id: "",
@@ -267,7 +477,8 @@ export default function AdminMatchesPage() {
       team2_id: "",
       match_date: "",
       status: "scheduled",
-      number_of_matches: 2,
+      number_of_matches: 1,
+      maps_per_match: 3,
     });
   };
 
@@ -355,7 +566,7 @@ export default function AdminMatchesPage() {
               }}
               className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold transition-colors"
             >
-              + Schedule Matches (2-5)
+              + Schedule Match
             </button>
           </div>
         </div>
@@ -526,9 +737,46 @@ export default function AdminMatchesPage() {
                         </span>
                       </td>
                       <td className="px-6 py-4 text-center">
-                        <span className="text-white font-bold text-lg">
-                          {match.team1_score}-{match.team2_score}
-                        </span>
+                        <div className="space-y-2">
+                          <div className="text-white font-bold text-lg mb-2">
+                            {match.team1_score}-{match.team2_score}
+                          </div>
+                          <div className="text-xs text-gray-400 space-y-1">
+                            {match.maps && match.maps.length > 0 ? (
+                              match.maps.map((map) => (
+                                <div
+                                  key={map.id}
+                                  className="flex justify-center items-center space-x-2"
+                                >
+                                  <span className="text-gray-500">
+                                    Map {map.map_number}:
+                                  </span>
+                                  <span
+                                    className={
+                                      map.winner_team_id === match.team1_id
+                                        ? "text-green-400 font-semibold"
+                                        : "text-gray-400"
+                                    }
+                                  >
+                                    {map.team1_score}
+                                  </span>
+                                  <span className="text-gray-500">-</span>
+                                  <span
+                                    className={
+                                      map.winner_team_id === match.team2_id
+                                        ? "text-green-400 font-semibold"
+                                        : "text-gray-400"
+                                    }
+                                  >
+                                    {map.team2_score}
+                                  </span>
+                                </div>
+                              ))
+                            ) : (
+                              <div className="text-gray-500">No map data</div>
+                            )}
+                          </div>
+                        </div>
                       </td>
                       <td className="px-6 py-4 text-center">
                         {match.status === "live" && (
@@ -575,12 +823,12 @@ export default function AdminMatchesPage() {
         {showAddForm && !editingMatch && (
           <div className="bg-gray-900/50 backdrop-blur-sm rounded-2xl border border-gray-800 p-6">
             <h3 className="text-xl font-bold text-white mb-4">
-              Schedule Match Series (Same Teams)
+              Schedule Match
             </h3>
             <p className="text-gray-400 text-sm mb-6">
-              Create 2-5 matches between the same two teams for one match day
+              Create one or more matches between two teams with 2-5 maps each
             </p>
-            
+
             {/* Team Selection */}
             <div className="bg-gray-800/50 p-4 rounded-lg mb-6 border border-gray-700">
               <h4 className="text-lg font-semibold text-white mb-3">Teams</h4>
@@ -592,7 +840,10 @@ export default function AdminMatchesPage() {
                   <select
                     value={bulkFormData.team1_id}
                     onChange={(e) =>
-                      setBulkFormData({ ...bulkFormData, team1_id: e.target.value })
+                      setBulkFormData({
+                        ...bulkFormData,
+                        team1_id: e.target.value,
+                      })
                     }
                     className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-blue-500"
                   >
@@ -611,7 +862,10 @@ export default function AdminMatchesPage() {
                   <select
                     value={bulkFormData.team2_id}
                     onChange={(e) =>
-                      setBulkFormData({ ...bulkFormData, team2_id: e.target.value })
+                      setBulkFormData({
+                        ...bulkFormData,
+                        team2_id: e.target.value,
+                      })
                     }
                     className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-blue-500"
                   >
@@ -628,8 +882,10 @@ export default function AdminMatchesPage() {
 
             {/* Match Day Settings */}
             <div className="bg-gray-800/50 p-4 rounded-lg mb-6 border border-gray-700">
-              <h4 className="text-lg font-semibold text-white mb-3">Match Day Settings</h4>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <h4 className="text-lg font-semibold text-white mb-3">
+                Match Day Settings
+              </h4>
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <div>
                   <label className="block text-gray-400 text-sm mb-2">
                     Number of Matches <span className="text-red-400">*</span>
@@ -644,10 +900,31 @@ export default function AdminMatchesPage() {
                     }
                     className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-blue-500"
                   >
+                    <option value={1}>1 Match</option>
                     <option value={2}>2 Matches</option>
-                    <option value={3}>3 Matches (Best of 3)</option>
+                    <option value={3}>3 Matches</option>
                     <option value={4}>4 Matches</option>
-                    <option value={5}>5 Matches (Best of 5)</option>
+                    <option value={5}>5 Matches</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-gray-400 text-sm mb-2">
+                    Maps Per Match <span className="text-red-400">*</span>
+                  </label>
+                  <select
+                    value={bulkFormData.maps_per_match}
+                    onChange={(e) =>
+                      setBulkFormData({
+                        ...bulkFormData,
+                        maps_per_match: parseInt(e.target.value),
+                      })
+                    }
+                    className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-blue-500"
+                  >
+                    <option value={2}>2 Maps (Best of 2)</option>
+                    <option value={3}>3 Maps (Best of 3)</option>
+                    <option value={4}>4 Maps (Best of 4)</option>
+                    <option value={5}>5 Maps (Best of 5)</option>
                   </select>
                 </div>
                 <div>
@@ -658,7 +935,10 @@ export default function AdminMatchesPage() {
                     type="datetime-local"
                     value={bulkFormData.match_date}
                     onChange={(e) =>
-                      setBulkFormData({ ...bulkFormData, match_date: e.target.value })
+                      setBulkFormData({
+                        ...bulkFormData,
+                        match_date: e.target.value,
+                      })
                     }
                     className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-blue-500"
                   />
@@ -670,7 +950,10 @@ export default function AdminMatchesPage() {
                   <select
                     value={bulkFormData.status}
                     onChange={(e) =>
-                      setBulkFormData({ ...bulkFormData, status: e.target.value })
+                      setBulkFormData({
+                        ...bulkFormData,
+                        status: e.target.value,
+                      })
                     }
                     className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-blue-500"
                   >
@@ -686,13 +969,55 @@ export default function AdminMatchesPage() {
             {/* Preview */}
             {bulkFormData.team1_id && bulkFormData.team2_id && (
               <div className="bg-blue-900/20 border border-blue-700 rounded-lg p-4 mb-6">
-                <div className="flex items-center space-x-2 text-blue-300">
-                  <span className="text-lg">ℹ️</span>
-                  <span>
-                    This will create <strong>{bulkFormData.number_of_matches} matches</strong> between{" "}
-                    <strong>{teams.find((t) => t.id === parseInt(bulkFormData.team1_id))?.name}</strong> and{" "}
-                    <strong>{teams.find((t) => t.id === parseInt(bulkFormData.team2_id))?.name}</strong>
-                  </span>
+                <div className="flex flex-col space-y-2 text-blue-300">
+                  <div className="flex items-center space-x-2">
+                    <span className="text-lg">ℹ️</span>
+                    <span>
+                      This will create{" "}
+                      <strong>
+                        {bulkFormData.number_of_matches}{" "}
+                        {bulkFormData.number_of_matches === 1
+                          ? "match"
+                          : "matches"}
+                      </strong>{" "}
+                      between{" "}
+                      <strong>
+                        {
+                          teams.find(
+                            (t) => t.id === parseInt(bulkFormData.team1_id)
+                          )?.name
+                        }
+                      </strong>{" "}
+                      and{" "}
+                      <strong>
+                        {
+                          teams.find(
+                            (t) => t.id === parseInt(bulkFormData.team2_id)
+                          )?.name
+                        }
+                      </strong>
+                    </span>
+                  </div>
+                  <div className="text-sm ml-7">
+                    {bulkFormData.number_of_matches === 1
+                      ? "The match"
+                      : "Each match"}{" "}
+                    will have{" "}
+                    <strong>{bulkFormData.maps_per_match} maps</strong> (Best of{" "}
+                    {bulkFormData.maps_per_match})
+                    <br />
+                    Total:{" "}
+                    <strong>
+                      {bulkFormData.number_of_matches *
+                        bulkFormData.maps_per_match}{" "}
+                      {bulkFormData.number_of_matches *
+                        bulkFormData.maps_per_match ===
+                      1
+                        ? "map"
+                        : "maps"}
+                    </strong>{" "}
+                    will be created
+                  </div>
                 </div>
               </div>
             )}
@@ -702,7 +1027,15 @@ export default function AdminMatchesPage() {
                 onClick={handleAddBulkMatches}
                 className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-colors"
               >
-                Create {bulkFormData.number_of_matches} Matches
+                Create {bulkFormData.number_of_matches}{" "}
+                {bulkFormData.number_of_matches === 1 ? "Match" : "Matches"} (
+                {bulkFormData.number_of_matches * bulkFormData.maps_per_match}{" "}
+                {bulkFormData.number_of_matches *
+                  bulkFormData.maps_per_match ===
+                1
+                  ? "map"
+                  : "maps"}{" "}
+                total)
               </button>
               <button
                 onClick={cancelEdit}
@@ -718,112 +1051,458 @@ export default function AdminMatchesPage() {
         {showAddForm && editingMatch && (
           <div className="bg-gray-900/50 backdrop-blur-sm rounded-2xl border border-gray-800 p-6">
             <h3 className="text-xl font-bold text-white mb-4">
-              Edit Match
+              Edit Match & Map Results
             </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              <div>
-                <label className="block text-gray-400 text-sm mb-2">
-                  Team 1 <span className="text-red-400">*</span>
-                </label>
-                <select
-                  value={formData.team1_id}
-                  onChange={(e) =>
-                    setFormData({ ...formData, team1_id: e.target.value })
-                  }
-                  className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-blue-500"
-                >
-                  <option value="">Select team</option>
-                  {teams.map((team) => (
-                    <option key={team.id} value={team.id}>
-                      {team.logo} {team.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="block text-gray-400 text-sm mb-2">
-                  Team 2 <span className="text-red-400">*</span>
-                </label>
-                <select
-                  value={formData.team2_id}
-                  onChange={(e) =>
-                    setFormData({ ...formData, team2_id: e.target.value })
-                  }
-                  className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-blue-500"
-                >
-                  <option value="">Select team</option>
-                  {teams.map((team) => (
-                    <option key={team.id} value={team.id}>
-                      {team.logo} {team.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="block text-gray-400 text-sm mb-2">
-                  Team 1 Score
-                </label>
-                <input
-                  type="number"
-                  value={formData.team1_score}
-                  onChange={(e) =>
-                    setFormData({ ...formData, team1_score: e.target.value })
-                  }
-                  min="0"
-                  className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-blue-500"
-                />
-              </div>
-              <div>
-                <label className="block text-gray-400 text-sm mb-2">
-                  Team 2 Score
-                </label>
-                <input
-                  type="number"
-                  value={formData.team2_score}
-                  onChange={(e) =>
-                    setFormData({ ...formData, team2_score: e.target.value })
-                  }
-                  min="0"
-                  className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-blue-500"
-                />
-              </div>
-              <div>
-                <label className="block text-gray-400 text-sm mb-2">
-                  Match Date & Time
-                </label>
-                <input
-                  type="datetime-local"
-                  value={formData.match_date}
-                  onChange={(e) =>
-                    setFormData({ ...formData, match_date: e.target.value })
-                  }
-                  className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-blue-500"
-                />
-              </div>
-              <div>
-                <label className="block text-gray-400 text-sm mb-2">
-                  Status
-                </label>
-                <select
-                  value={formData.status}
-                  onChange={(e) =>
-                    setFormData({ ...formData, status: e.target.value })
-                  }
-                  className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-blue-500"
-                >
-                  <option value="scheduled">Scheduled</option>
-                  <option value="live">Live</option>
-                  <option value="completed">Completed</option>
-                  <option value="cancelled">Cancelled</option>
-                </select>
+
+            {/* Match Info */}
+            <div className="bg-gray-800/50 p-4 rounded-lg mb-6 border border-gray-700">
+              <h4 className="text-lg font-semibold text-white mb-3">
+                Match Details
+              </h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div>
+                  <label className="block text-gray-400 text-sm mb-2">
+                    Team 1 <span className="text-red-400">*</span>
+                  </label>
+                  <select
+                    value={formData.team1_id}
+                    onChange={(e) =>
+                      setFormData({ ...formData, team1_id: e.target.value })
+                    }
+                    className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-blue-500"
+                  >
+                    <option value="">Select team</option>
+                    {teams.map((team) => (
+                      <option key={team.id} value={team.id}>
+                        {team.logo} {team.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-gray-400 text-sm mb-2">
+                    Team 2 <span className="text-red-400">*</span>
+                  </label>
+                  <select
+                    value={formData.team2_id}
+                    onChange={(e) =>
+                      setFormData({ ...formData, team2_id: e.target.value })
+                    }
+                    className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-blue-500"
+                  >
+                    <option value="">Select team</option>
+                    {teams.map((team) => (
+                      <option key={team.id} value={team.id}>
+                        {team.logo} {team.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-gray-400 text-sm mb-2">
+                    Match Date & Time
+                  </label>
+                  <input
+                    type="datetime-local"
+                    value={formData.match_date}
+                    onChange={(e) =>
+                      setFormData({ ...formData, match_date: e.target.value })
+                    }
+                    className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-gray-400 text-sm mb-2">
+                    Match Status
+                  </label>
+                  <select
+                    value={formData.status}
+                    onChange={(e) =>
+                      setFormData({ ...formData, status: e.target.value })
+                    }
+                    className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-blue-500"
+                  >
+                    <option value="scheduled">Scheduled</option>
+                    <option value="live">Live</option>
+                    <option value="completed">Completed</option>
+                    <option value="cancelled">Cancelled</option>
+                  </select>
+                </div>
               </div>
             </div>
-            <div className="mt-4 flex space-x-3">
+
+            {/* Map Results */}
+            <div className="bg-gray-800/50 p-4 rounded-lg mb-6 border border-gray-700">
+              <h4 className="text-lg font-semibold text-white mb-3">
+                Map Results (Best of{" "}
+                {editingMatch.num_maps || editingMaps.length})
+              </h4>
+              <div className="space-y-4">
+                {editingMaps.map((map, index) => (
+                  <div
+                    key={map.id}
+                    className="bg-gray-900/50 p-4 rounded-lg border border-gray-600"
+                  >
+                    <div className="flex items-center justify-between mb-3">
+                      <h5 className="text-white font-semibold">
+                        Map {map.map_number}
+                      </h5>
+                      <span className="text-xs text-gray-400">
+                        Winner:{" "}
+                        {map.winner_team_id === parseInt(formData.team1_id)
+                          ? teams.find(
+                              (t) => t.id === parseInt(formData.team1_id)
+                            )?.name
+                          : map.winner_team_id === parseInt(formData.team2_id)
+                          ? teams.find(
+                              (t) => t.id === parseInt(formData.team2_id)
+                            )?.name
+                          : "TBD"}
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-3 gap-4">
+                      <div>
+                        <label className="block text-gray-400 text-sm mb-2">
+                          {
+                            teams.find(
+                              (t) => t.id === parseInt(formData.team1_id)
+                            )?.logo
+                          }{" "}
+                          {
+                            teams.find(
+                              (t) => t.id === parseInt(formData.team1_id)
+                            )?.name
+                          }{" "}
+                          Score
+                        </label>
+                        <input
+                          type="number"
+                          value={map.team1_score}
+                          onChange={(e) => {
+                            const newMaps = [...editingMaps];
+                            newMaps[index].team1_score =
+                              parseInt(e.target.value) || 0;
+                            setEditingMaps(newMaps);
+                          }}
+                          min="0"
+                          className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-blue-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-gray-400 text-sm mb-2">
+                          {
+                            teams.find(
+                              (t) => t.id === parseInt(formData.team2_id)
+                            )?.logo
+                          }{" "}
+                          {
+                            teams.find(
+                              (t) => t.id === parseInt(formData.team2_id)
+                            )?.name
+                          }{" "}
+                          Score
+                        </label>
+                        <input
+                          type="number"
+                          value={map.team2_score}
+                          onChange={(e) => {
+                            const newMaps = [...editingMaps];
+                            newMaps[index].team2_score =
+                              parseInt(e.target.value) || 0;
+                            setEditingMaps(newMaps);
+                          }}
+                          min="0"
+                          className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-blue-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-gray-400 text-sm mb-2">
+                          Map Status
+                        </label>
+                        <select
+                          value={map.status}
+                          onChange={(e) => {
+                            const newMaps = [...editingMaps];
+                            newMaps[index].status = e.target.value as
+                              | "scheduled"
+                              | "live"
+                              | "completed"
+                              | "cancelled";
+                            setEditingMaps(newMaps);
+                          }}
+                          className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-blue-500"
+                        >
+                          <option value="scheduled">Scheduled</option>
+                          <option value="live">Live</option>
+                          <option value="completed">Completed</option>
+                          <option value="cancelled">Cancelled</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    {/* Player Statistics */}
+                    <div className="mt-4 pt-4 border-t border-gray-700">
+                      <h6 className="text-white font-semibold mb-3">
+                        Player Statistics
+                      </h6>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {/* Team 1 Players */}
+                        <div>
+                          <h6 className="text-sm font-semibold text-gray-300 mb-2">
+                            {
+                              teams.find(
+                                (t) => t.id === parseInt(formData.team1_id)
+                              )?.logo
+                            }{" "}
+                            {
+                              teams.find(
+                                (t) => t.id === parseInt(formData.team1_id)
+                              )?.name
+                            }
+                          </h6>
+                          <div className="space-y-2">
+                            {map.player_stats
+                              ?.filter(
+                                (stat) =>
+                                  stat.team_id === parseInt(formData.team1_id)
+                              )
+                              .map((stat, statIndex) => {
+                                const mapIndex = editingMaps.findIndex(
+                                  (m) => m.id === map.id
+                                );
+                                const statsIndex = editingMaps[
+                                  mapIndex
+                                ]?.player_stats?.findIndex(
+                                  (s) =>
+                                    s.player_id === stat.player_id &&
+                                    s.team_id === stat.team_id
+                                );
+                                return (
+                                  <div
+                                    key={`${stat.player_id}-${statIndex}`}
+                                    className="bg-gray-800/50 p-2 rounded"
+                                  >
+                                    <div className="text-xs text-gray-400 mb-1">
+                                      {stat.player?.name ||
+                                        `Player ${stat.player_id}`}
+                                    </div>
+                                    <div className="grid grid-cols-3 gap-2">
+                                      <input
+                                        type="number"
+                                        placeholder="K"
+                                        value={stat.kills}
+                                        onChange={(e) => {
+                                          const newMaps = [...editingMaps];
+                                          if (
+                                            statsIndex !== undefined &&
+                                            statsIndex !== -1
+                                          ) {
+                                            newMaps[mapIndex].player_stats![
+                                              statsIndex
+                                            ].kills =
+                                              parseInt(e.target.value) || 0;
+                                            setEditingMaps(newMaps);
+                                          }
+                                        }}
+                                        min="0"
+                                        className="w-full px-2 py-1 bg-gray-700 border border-gray-600 rounded text-white text-xs focus:outline-none focus:border-blue-500"
+                                        title="Kills"
+                                      />
+                                      <input
+                                        type="number"
+                                        placeholder="A"
+                                        value={stat.assists}
+                                        onChange={(e) => {
+                                          const newMaps = [...editingMaps];
+                                          if (
+                                            statsIndex !== undefined &&
+                                            statsIndex !== -1
+                                          ) {
+                                            newMaps[mapIndex].player_stats![
+                                              statsIndex
+                                            ].assists =
+                                              parseInt(e.target.value) || 0;
+                                            setEditingMaps(newMaps);
+                                          }
+                                        }}
+                                        min="0"
+                                        className="w-full px-2 py-1 bg-gray-700 border border-gray-600 rounded text-white text-xs focus:outline-none focus:border-blue-500"
+                                        title="Assists"
+                                      />
+                                      <input
+                                        type="number"
+                                        placeholder="D"
+                                        value={stat.deaths}
+                                        onChange={(e) => {
+                                          const newMaps = [...editingMaps];
+                                          if (
+                                            statsIndex !== undefined &&
+                                            statsIndex !== -1
+                                          ) {
+                                            newMaps[mapIndex].player_stats![
+                                              statsIndex
+                                            ].deaths =
+                                              parseInt(e.target.value) || 0;
+                                            setEditingMaps(newMaps);
+                                          }
+                                        }}
+                                        min="0"
+                                        className="w-full px-2 py-1 bg-gray-700 border border-gray-600 rounded text-white text-xs focus:outline-none focus:border-blue-500"
+                                        title="Deaths"
+                                      />
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                          </div>
+                        </div>
+
+                        {/* Team 2 Players */}
+                        <div>
+                          <h6 className="text-sm font-semibold text-gray-300 mb-2">
+                            {
+                              teams.find(
+                                (t) => t.id === parseInt(formData.team2_id)
+                              )?.logo
+                            }{" "}
+                            {
+                              teams.find(
+                                (t) => t.id === parseInt(formData.team2_id)
+                              )?.name
+                            }
+                          </h6>
+                          <div className="space-y-2">
+                            {map.player_stats
+                              ?.filter(
+                                (stat) =>
+                                  stat.team_id === parseInt(formData.team2_id)
+                              )
+                              .map((stat, statIndex) => {
+                                const mapIndex = editingMaps.findIndex(
+                                  (m) => m.id === map.id
+                                );
+                                const statsIndex = editingMaps[
+                                  mapIndex
+                                ]?.player_stats?.findIndex(
+                                  (s) =>
+                                    s.player_id === stat.player_id &&
+                                    s.team_id === stat.team_id
+                                );
+                                return (
+                                  <div
+                                    key={`${stat.player_id}-${statIndex}`}
+                                    className="bg-gray-800/50 p-2 rounded"
+                                  >
+                                    <div className="text-xs text-gray-400 mb-1">
+                                      {stat.player?.name ||
+                                        `Player ${stat.player_id}`}
+                                    </div>
+                                    <div className="grid grid-cols-3 gap-2">
+                                      <input
+                                        type="number"
+                                        placeholder="K"
+                                        value={stat.kills}
+                                        onChange={(e) => {
+                                          const newMaps = [...editingMaps];
+                                          if (
+                                            statsIndex !== undefined &&
+                                            statsIndex !== -1
+                                          ) {
+                                            newMaps[mapIndex].player_stats![
+                                              statsIndex
+                                            ].kills =
+                                              parseInt(e.target.value) || 0;
+                                            setEditingMaps(newMaps);
+                                          }
+                                        }}
+                                        min="0"
+                                        className="w-full px-2 py-1 bg-gray-700 border border-gray-600 rounded text-white text-xs focus:outline-none focus:border-blue-500"
+                                        title="Kills"
+                                      />
+                                      <input
+                                        type="number"
+                                        placeholder="A"
+                                        value={stat.assists}
+                                        onChange={(e) => {
+                                          const newMaps = [...editingMaps];
+                                          if (
+                                            statsIndex !== undefined &&
+                                            statsIndex !== -1
+                                          ) {
+                                            newMaps[mapIndex].player_stats![
+                                              statsIndex
+                                            ].assists =
+                                              parseInt(e.target.value) || 0;
+                                            setEditingMaps(newMaps);
+                                          }
+                                        }}
+                                        min="0"
+                                        className="w-full px-2 py-1 bg-gray-700 border border-gray-600 rounded text-white text-xs focus:outline-none focus:border-blue-500"
+                                        title="Assists"
+                                      />
+                                      <input
+                                        type="number"
+                                        placeholder="D"
+                                        value={stat.deaths}
+                                        onChange={(e) => {
+                                          const newMaps = [...editingMaps];
+                                          if (
+                                            statsIndex !== undefined &&
+                                            statsIndex !== -1
+                                          ) {
+                                            newMaps[mapIndex].player_stats![
+                                              statsIndex
+                                            ].deaths =
+                                              parseInt(e.target.value) || 0;
+                                            setEditingMaps(newMaps);
+                                          }
+                                        }}
+                                        min="0"
+                                        className="w-full px-2 py-1 bg-gray-700 border border-gray-600 rounded text-white text-xs focus:outline-none focus:border-blue-500"
+                                        title="Deaths"
+                                      />
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="text-xs text-gray-500 mt-2">
+                        K = Kills, A = Assists, D = Deaths
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Overall Match Score Preview */}
+            <div className="bg-blue-900/20 border border-blue-700 rounded-lg p-4 mb-6">
+              <div className="flex items-center justify-between">
+                <span className="text-blue-300">Overall Match Score:</span>
+                <span className="text-white font-bold text-xl">
+                  {
+                    editingMaps.filter(
+                      (m) => m.winner_team_id === parseInt(formData.team1_id)
+                    ).length
+                  }
+                  {" - "}
+                  {
+                    editingMaps.filter(
+                      (m) => m.winner_team_id === parseInt(formData.team2_id)
+                    ).length
+                  }
+                </span>
+              </div>
+            </div>
+
+            <div className="flex space-x-3">
               <button
                 onClick={handleUpdateMatch}
                 className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-colors"
               >
-                Update Match
+                Update Match & Maps
               </button>
               <button
                 onClick={cancelEdit}

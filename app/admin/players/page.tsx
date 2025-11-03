@@ -8,18 +8,21 @@ interface Player {
   id: number;
   name: string;
   team_id: number;
+  role?: string;
   avatar: string;
+  kills: number;
+  assists: number;
+  deaths: number;
+  matches_played: number;
+  wins: number;
+  losses: number;
   created_at?: string;
   updated_at?: string;
 }
 
-interface PlayerWithStats extends Player {
+interface PlayerWithTeam extends Player {
   teamName: string;
   teamLogo: string;
-  kills: number;
-  deaths: number;
-  assists: number;
-  gamesPlayed: number;
 }
 
 interface Team {
@@ -29,7 +32,7 @@ interface Team {
 }
 
 export default function AdminPlayersPage() {
-  const [players, setPlayers] = useState<PlayerWithStats[]>([]);
+  const [players, setPlayers] = useState<PlayerWithTeam[]>([]);
   const [teams, setTeams] = useState<Team[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
@@ -40,6 +43,7 @@ export default function AdminPlayersPage() {
   const [formData, setFormData] = useState({
     name: "",
     team_id: "",
+    role: "",
     avatar: "👤",
   });
 
@@ -58,11 +62,11 @@ export default function AdminPlayersPage() {
     setTeams(data || []);
   };
 
-  // Fetch players with stats
+  // Fetch players with team info
   const fetchPlayers = async () => {
     setLoading(true);
 
-    // 1. Fetch all players
+    // Fetch all players (stats are stored in the player record now)
     const { data: playersData, error: playersError } = await supabase
       .from("players")
       .select("*")
@@ -74,18 +78,7 @@ export default function AdminPlayersPage() {
       return;
     }
 
-    // 2. Fetch all match player stats
-    const { data: statsData, error: statsError } = await supabase
-      .from("match_player_stats")
-      .select("*");
-
-    if (statsError) {
-      console.error("Error fetching stats:", statsError);
-      setLoading(false);
-      return;
-    }
-
-    // 3. Fetch teams for player associations
+    // Fetch teams for player associations
     const { data: teamsData, error: teamsError } = await supabase
       .from("teams")
       .select("*");
@@ -96,36 +89,20 @@ export default function AdminPlayersPage() {
       return;
     }
 
-    // 4. Calculate stats for each player
-    const playersWithStats: PlayerWithStats[] = (playersData || []).map(
+    // Combine players with team info
+    const playersWithTeams: PlayerWithTeam[] = (playersData || []).map(
       (player) => {
-        const playerStats = (statsData || []).filter(
-          (stat) => stat.player_id === player.id
-        );
-
-        const kills = playerStats.reduce((sum, stat) => sum + stat.kills, 0);
-        const deaths = playerStats.reduce((sum, stat) => sum + stat.deaths, 0);
-        const assists = playerStats.reduce(
-          (sum, stat) => sum + stat.assists,
-          0
-        );
-        const gamesPlayed = playerStats.length;
-
         const team = teamsData?.find((t) => t.id === player.team_id);
 
         return {
           ...player,
           teamName: team?.name || "Unknown",
           teamLogo: team?.logo || "⚡",
-          kills,
-          deaths,
-          assists,
-          gamesPlayed,
         };
       }
     );
 
-    setPlayers(playersWithStats);
+    setPlayers(playersWithTeams);
     setLoading(false);
   };
 
@@ -151,6 +128,7 @@ export default function AdminPlayersPage() {
       {
         name: formData.name,
         team_id: parseInt(formData.team_id),
+        role: formData.role || null,
         avatar: formData.avatar,
       },
     ]);
@@ -162,7 +140,7 @@ export default function AdminPlayersPage() {
     }
 
     // Reset form and refresh
-    setFormData({ name: "", team_id: "", avatar: "👤" });
+    setFormData({ name: "", team_id: "", role: "", avatar: "👤" });
     setShowAddForm(false);
     fetchPlayers();
   };
@@ -317,8 +295,11 @@ export default function AdminPlayersPage() {
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-400 uppercase">
                     Team
                   </th>
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-400 uppercase">
+                    Role
+                  </th>
                   <th className="px-6 py-4 text-center text-xs font-semibold text-gray-400 uppercase">
-                    Games
+                    Matches
                   </th>
                   <th className="px-6 py-4 text-center text-xs font-semibold text-gray-400 uppercase">
                     Kills
@@ -333,6 +314,9 @@ export default function AdminPlayersPage() {
                     K/D
                   </th>
                   <th className="px-6 py-4 text-center text-xs font-semibold text-gray-400 uppercase">
+                    W/L
+                  </th>
+                  <th className="px-6 py-4 text-center text-xs font-semibold text-gray-400 uppercase">
                     Actions
                   </th>
                 </tr>
@@ -340,7 +324,7 @@ export default function AdminPlayersPage() {
               <tbody className="divide-y divide-gray-800">
                 {filteredPlayers.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="px-6 py-12 text-center">
+                    <td colSpan={10} className="px-6 py-12 text-center">
                       <div className="text-gray-400">
                         {players.length === 0
                           ? "No players found. Add a player to get started!"
@@ -353,7 +337,9 @@ export default function AdminPlayersPage() {
                     const kd =
                       player.deaths > 0
                         ? (player.kills / player.deaths).toFixed(2)
-                        : player.kills.toFixed(2);
+                        : player.kills > 0
+                        ? player.kills.toFixed(2)
+                        : "0.00";
 
                     return (
                       <tr
@@ -381,9 +367,14 @@ export default function AdminPlayersPage() {
                             </span>
                           </div>
                         </td>
+                        <td className="px-6 py-4">
+                          <span className="text-gray-300 text-sm">
+                            {player.role || "—"}
+                          </span>
+                        </td>
                         <td className="px-6 py-4 text-center">
                           <span className="text-gray-300 font-medium">
-                            {player.gamesPlayed}
+                            {player.matches_played}
                           </span>
                         </td>
                         <td className="px-6 py-4 text-center">
@@ -410,6 +401,11 @@ export default function AdminPlayersPage() {
                             }`}
                           >
                             {kd}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 text-center">
+                          <span className="text-gray-300 text-sm">
+                            {player.wins}W / {player.losses}L
                           </span>
                         </td>
                         <td className="px-6 py-4 text-center">
@@ -441,7 +437,7 @@ export default function AdminPlayersPage() {
               Stats will be calculated automatically from match results.
             </p>
             <form onSubmit={handleAddPlayer}>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 <div>
                   <label className="block text-gray-400 text-sm mb-2">
                     Player Name *
@@ -479,7 +475,27 @@ export default function AdminPlayersPage() {
                 </div>
                 <div>
                   <label className="block text-gray-400 text-sm mb-2">
-                    Avatar
+                    Role
+                  </label>
+                  <select
+                    value={formData.role}
+                    onChange={(e) =>
+                      setFormData({ ...formData, role: e.target.value })
+                    }
+                    className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-blue-500"
+                  >
+                    <option value="">Select role</option>
+                    <option value="Entry Fragger">Entry Fragger</option>
+                    <option value="IGL">IGL (In-Game Leader)</option>
+                    <option value="AWPer">AWPer</option>
+                    <option value="Support">Support</option>
+                    <option value="Rifler">Rifler</option>
+                    <option value="Lurker">Lurker</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-gray-400 text-sm mb-2">
+                    Avatar (Emoji)
                   </label>
                   <input
                     type="text"
@@ -503,7 +519,12 @@ export default function AdminPlayersPage() {
                   type="button"
                   onClick={() => {
                     setShowAddForm(false);
-                    setFormData({ name: "", team_id: "", avatar: "👤" });
+                    setFormData({
+                      name: "",
+                      team_id: "",
+                      role: "",
+                      avatar: "👤",
+                    });
                   }}
                   className="px-6 py-2 bg-gray-700 hover:bg-gray-600 text-white font-semibold rounded-lg transition-colors"
                 >
