@@ -123,50 +123,6 @@ export default function AdminTeamsPage() {
           </div>
         </div>
 
-        {/* Stats Overview */}
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-          <div className="bg-gray-900/50 backdrop-blur-sm rounded-xl p-6 border border-gray-800">
-            <div className="text-3xl mb-2">👥</div>
-            <div className="text-2xl font-bold text-white">{teams.length}</div>
-            <div className="text-sm text-gray-400">Total Teams</div>
-          </div>
-          <div className="bg-green-900/50 backdrop-blur-sm rounded-xl p-6 border border-green-800">
-            <div className="text-3xl mb-2">✅</div>
-            <div className="text-2xl font-bold text-green-400">
-              {teams.reduce((sum, t) => sum + t.matchesWon, 0)}
-            </div>
-            <div className="text-sm text-green-300">Matches Won</div>
-          </div>
-          <div className="bg-red-900/50 backdrop-blur-sm rounded-xl p-6 border border-red-800">
-            <div className="text-3xl mb-2">❌</div>
-            <div className="text-2xl font-bold text-red-400">
-              {teams.reduce((sum, t) => sum + t.matchesLost, 0)}
-            </div>
-            <div className="text-sm text-red-300">Matches Lost</div>
-          </div>
-          <div className="bg-gray-900/50 backdrop-blur-sm rounded-xl p-6 border border-gray-800">
-            <div className="text-3xl mb-2">🏆</div>
-            <div className="text-2xl font-bold text-yellow-400">
-              {teams.filter((t) => t.matchesWon > t.matchesLost).length}
-            </div>
-            <div className="text-sm text-gray-400">Positive Record</div>
-          </div>
-          <div className="bg-gray-900/50 backdrop-blur-sm rounded-xl p-6 border border-gray-800">
-            <div className="text-3xl mb-2">📊</div>
-            <div className="text-2xl font-bold text-blue-400">
-              {teams.reduce((sum, t) => sum + t.roundsWon, 0)}
-            </div>
-            <div className="text-sm text-gray-400">Total Rounds Won</div>
-          </div>
-          <div className="bg-gray-900/50 backdrop-blur-sm rounded-xl p-6 border border-gray-800">
-            <div className="text-3xl mb-2">📉</div>
-            <div className="text-2xl font-bold text-orange-400">
-              {teams.reduce((sum, t) => sum + t.roundsLost, 0)}
-            </div>
-            <div className="text-sm text-gray-400">Total Rounds Lost</div>
-          </div>
-        </div>
-
         {/* Teams Table */}
         <div className="bg-gray-900/50 backdrop-blur-sm rounded-2xl border border-gray-800 overflow-hidden">
           <div className="p-6 border-b border-gray-800">
