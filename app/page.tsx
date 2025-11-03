@@ -278,7 +278,7 @@ export default function Home() {
         </div>
 
         {/* Stats Summary */}
-        <div className="mt-6 grid grid-cols-4 gap-4">
+        <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
           <div className="bg-gray-900/50 backdrop-blur-sm rounded-xl p-4 border border-gray-800 text-center">
             <div className="text-gray-400 text-sm mb-1">Total Teams</div>
             <div className="text-2xl font-bold text-white">{teams.length}</div>
