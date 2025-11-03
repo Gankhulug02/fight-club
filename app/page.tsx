@@ -23,6 +23,15 @@ interface Match {
   status: string;
 }
 
+interface MatchMap {
+  id: number;
+  match_id: number;
+  map_number: number;
+  team1_score: number;
+  team2_score: number;
+  status: string;
+}
+
 export default function Home() {
   const [teams, setTeams] = useState<Team[]>([]);
   const [loading, setLoading] = useState(true);
@@ -52,6 +61,13 @@ export default function Home() {
 
       if (matchesError) throw matchesError;
 
+      // Fetch all match maps
+      const { data: mapsData, error: mapsError } = await supabase
+        .from("match_maps")
+        .select("*");
+
+      if (mapsError) throw mapsError;
+
       // Calculate statistics for each team
       const teamsWithStats = (teamsData || []).map((team) => {
         const teamMatches = (matchesData || []).filter(
@@ -66,19 +82,30 @@ export default function Home() {
 
         teamMatches.forEach((match: Match) => {
           const isTeam1 = match.team1_id === team.id;
-          const teamScore = isTeam1 ? match.team1_score : match.team2_score;
-          const opponentScore = isTeam1 ? match.team2_score : match.team1_score;
+          const teamMapsWon = isTeam1 ? match.team1_score : match.team2_score;
+          const opponentMapsWon = isTeam1
+            ? match.team2_score
+            : match.team1_score;
 
-          // Count match result
-          if (teamScore > opponentScore) {
+          // Count match result (based on maps won)
+          if (teamMapsWon > opponentMapsWon) {
             matches_won++;
-          } else if (teamScore < opponentScore) {
+          } else if (teamMapsWon < opponentMapsWon) {
             matches_lost++;
           }
 
-          // Count rounds
-          rounds_won += teamScore;
-          rounds_lost += opponentScore;
+          // Count rounds from individual maps for this match
+          const matchMaps = (mapsData || []).filter(
+            (map: MatchMap) => map.match_id === match.id
+          );
+
+          matchMaps.forEach((map: MatchMap) => {
+            const teamRounds = isTeam1 ? map.team1_score : map.team2_score;
+            const opponentRounds = isTeam1 ? map.team2_score : map.team1_score;
+
+            rounds_won += teamRounds;
+            rounds_lost += opponentRounds;
+          });
         });
 
         return {
@@ -189,17 +216,7 @@ export default function Home() {
                         className="hover:bg-gray-800/30 transition-colors duration-150"
                       >
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <div
-                            className={`text-lg font-bold ${
-                              index === 0
-                                ? "text-yellow-400"
-                                : index === 1
-                                ? "text-gray-300"
-                                : index === 2
-                                ? "text-orange-600"
-                                : "text-gray-500"
-                            }`}
-                          >
+                          <div className={`text-lg font-bold text-white`}>
                             {index + 1}
                           </div>
                         </td>
