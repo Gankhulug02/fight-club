@@ -81,12 +81,6 @@ export default function RootLayout({
                     LIVE
                   </span>
                 </div>
-                <a
-                  href="/admin"
-                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg transition-colors"
-                >
-                  Admin
-                </a>
               </div>
             </div>
           </div>
@@ -106,9 +100,9 @@ export default function RootLayout({
                   <h3 className="text-xl font-bold text-white">Fight Club</h3>
                 </div>
                 <p className="text-gray-400 text-sm leading-relaxed mb-4">
-                  The ultimate Counter-Strike 2 tournament. Watch the best
-                  teams battle it out for glory, bragging rights, and the
-                  championship title.
+                  The ultimate Counter-Strike 2 tournament. Watch the best teams
+                  battle it out for glory, bragging rights, and the championship
+                  title.
                 </p>
                 <p className="text-xs text-gray-500 italic">
                   "The first rule of Fight Club is: You do talk about Fight
