@@ -95,10 +95,18 @@ export default function RootLayout({
         </nav>
 
         {/* Main Content */}
-        <main className="min-h-screen">{children}</main>
+        <main className="min-h-screen">
+          <div className="bg-gradient-to-top-left min-h-screen h-full">
+            <div className="bg-gradient-to-bottom-right min-h-screen h-full">
+              <div className="backdrop-blur-2xl min-h-screen h-full">
+                {children}
+              </div>
+            </div>
+          </div>
+        </main>
 
         {/* Footer */}
-        <footer className="bg-gray-950 border-t border-gray-800 mt-8">
+        <footer className="bg-gray-950 border-t border-gray-800">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
             <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
               {/* About Section */}

@@ -543,14 +543,14 @@ export default function AdminMatchesPage() {
 
   if (loading) {
     return (
-      <div className="bg-gradient min-h-screen p-8 flex items-center justify-center">
+      <div className=" min-h-screen p-8 flex items-center justify-center">
         <div className="text-white text-xl">Loading matches...</div>
       </div>
     );
   }
 
   return (
-    <div className="bg-gradient min-h-screen p-8">
+    <div className=" min-h-screen p-8">
       <div className="max-w-7xl mx-auto space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">

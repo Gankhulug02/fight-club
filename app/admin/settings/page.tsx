@@ -11,7 +11,7 @@ export default function AdminSettingsPage() {
   const [publicLeaderboard, setPublicLeaderboard] = useState(true);
 
   return (
-    <div className="bg-gradient min-h-screen p-8">
+    <div className=" min-h-screen p-8">
       <div className="max-w-4xl mx-auto space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">

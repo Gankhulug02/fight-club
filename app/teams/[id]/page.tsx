@@ -292,7 +292,7 @@ export default function TeamDetailPage({
 
   if (loading) {
     return (
-      <div className="bg-gradient min-h-screen p-8 flex items-center justify-center">
+      <div className=" min-h-screen p-8 flex items-center justify-center">
         <div className="text-white text-xl">Loading team data...</div>
       </div>
     );
@@ -300,7 +300,7 @@ export default function TeamDetailPage({
 
   if (error || !team) {
     return (
-      <div className="bg-gradient min-h-screen p-8 flex items-center justify-center">
+      <div className=" min-h-screen p-8 flex items-center justify-center">
         <div className="text-center space-y-4">
           <div className="text-red-400 text-xl">
             {error || "Team not found"}
@@ -324,7 +324,7 @@ export default function TeamDetailPage({
       : "0.0";
 
   return (
-    <div className="bg-gradient min-h-screen p-8">
+    <div className=" min-h-screen p-8">
       <div className="max-w-7xl mx-auto space-y-8">
         {/* Team Header */}
         <div className="bg-gray-900/50 backdrop-blur-sm rounded-2xl shadow-2xl overflow-hidden border border-gray-800 p-8">

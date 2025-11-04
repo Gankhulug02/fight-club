@@ -14,14 +14,14 @@ export default function AdminPage() {
       description: "Manage tournament teams, view stats, and edit team details",
       icon: "👥",
       href: "/admin/teams",
-      color: "blue",
+      color: "purple",
     },
     {
       title: "Players",
       description: "Manage player profiles, statistics, and team assignments",
       icon: "🎮",
       href: "/admin/players",
-      color: "green",
+      color: "blue",
     },
     {
       title: "Matches",
@@ -29,14 +29,14 @@ export default function AdminPage() {
         "Schedule matches, update scores, and manage tournament fixtures",
       icon: "⚔️",
       href: "/admin/matches",
-      color: "purple",
+      color: "green",
     },
     {
       title: "Settings",
       description: "Configure tournament settings and general preferences",
       icon: "⚙️",
       href: "/admin/settings",
-      color: "gray",
+      color: "purple",
       stats: "Configure",
     },
   ];
@@ -62,44 +62,6 @@ export default function AdminPage() {
           </Link>
         </div>
 
-        {/* Stats Overview */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-          <div className="bg-gradient-to-br from-blue-900/50 to-blue-950/50 backdrop-blur-sm rounded-2xl p-6 border border-blue-800">
-            <div className="text-4xl mb-3">👥</div>
-            <div className="text-3xl font-bold text-white mb-1">
-              {stats.totalTeams}
-            </div>
-            <div className="text-blue-300 font-medium">Total Teams</div>
-          </div>
-          <div className="bg-gradient-to-br from-green-900/50 to-green-950/50 backdrop-blur-sm rounded-2xl p-6 border border-green-800">
-            <div className="text-4xl mb-3">🎮</div>
-            <div className="text-3xl font-bold text-white mb-1">
-              {stats.totalPlayers}
-            </div>
-            <div className="text-green-300 font-medium">Active Players</div>
-          </div>
-          <div className="bg-gradient-to-br from-purple-900/50 to-purple-950/50 backdrop-blur-sm rounded-2xl p-6 border border-purple-800">
-            <div className="text-4xl mb-3">⚔️</div>
-            <div className="text-3xl font-bold text-white mb-1">
-              {stats.totalMatches}
-            </div>
-            <div className="text-purple-300 font-medium">Total Matches</div>
-          </div>
-          <div className="bg-gradient-to-br from-red-900/50 to-red-950/50 backdrop-blur-sm rounded-2xl p-6 border border-red-800">
-            <div className="flex items-center space-x-2 mb-3">
-              <span className="flex h-3 w-3">
-                <span className="animate-ping absolute inline-flex h-3 w-3 rounded-full bg-red-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
-              </span>
-              <div className="text-3xl">🔴</div>
-            </div>
-            <div className="text-3xl font-bold text-white mb-1">
-              {stats.liveMatches}
-            </div>
-            <div className="text-red-300 font-medium">Live Matches</div>
-          </div>
-        </div>
-
         {/* Management Sections */}
         <div>
           <h2 className="text-2xl font-bold text-white mb-6">
@@ -120,7 +82,7 @@ export default function AdminPage() {
                 <Link
                   key={section.href}
                   href={section.href}
-                  className={`bg-gradient-to-br ${
+                  className={`bg-linear-to-br ${
                     colorClasses[section.color as keyof typeof colorClasses]
                   } backdrop-blur-sm rounded-2xl p-8 border-2 transition-all duration-200 hover:scale-105 group`}
                 >
