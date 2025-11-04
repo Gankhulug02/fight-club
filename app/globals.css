@@ -2,11 +2,11 @@
 
 /* Custom gradient background */
 .bg-gradient-to-top-left {
-  background: linear-gradient(to bottom left, transparent 80%, #00ff1e65 100%);
+  background: linear-gradient(to bottom left, transparent 20%, #00f7ff28 100%);
 }
 
 .bg-gradient-to-bottom-right {
-  background: linear-gradient(to bottom right, transparent 80%, #00ff1e65 100%);
+  background: linear-gradient(to bottom right, transparent 20%, #00ff1e26 100%);
 }
 
 /* :root {
