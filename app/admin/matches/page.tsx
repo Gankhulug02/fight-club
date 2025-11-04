@@ -218,7 +218,7 @@ export default function AdminMatchesPage() {
           team2_id: parseInt(formData.team2_id),
           match_date: formData.match_date,
           num_maps: editingMaps.length,
-          status: "completed",
+          status: formData.status,
         })
         .eq("id", editingMatch.id);
 
@@ -240,7 +240,7 @@ export default function AdminMatchesPage() {
             team2_score: map.team2_score,
             winner_team_id: winnerId,
             map_name: map.map_name || null,
-            status: "completed",
+            status: map.status,
           })
           .eq("id", map.id);
 

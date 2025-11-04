@@ -74,10 +74,7 @@ export default function MatchesTable({
           <tbody className="divide-y divide-gray-800">
             {matches.length === 0 ? (
               <tr>
-                <td
-                  colSpan={5}
-                  className="px-6 py-8 text-center text-gray-400"
-                >
+                <td colSpan={5} className="px-6 py-8 text-center text-gray-400">
                   {searchQuery
                     ? "No matches found matching your search."
                     : "No matches yet. Schedule one to get started!"}
@@ -169,6 +166,11 @@ export default function MatchesTable({
                         📅 Scheduled
                       </span>
                     )}
+                    {match.status === "cancelled" && (
+                      <span className="inline-flex items-center px-3 py-1 rounded-full bg-red-500/20 text-red-400 font-bold uppercase text-sm">
+                        ❌ Cancelled
+                      </span>
+                    )}
                   </td>
                   <td className="px-6 py-4 text-center">
                     <div className="flex items-center justify-center space-x-2">
@@ -195,4 +197,3 @@ export default function MatchesTable({
     </div>
   );
 }
-
