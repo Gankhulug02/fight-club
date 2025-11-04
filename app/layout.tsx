@@ -50,12 +50,10 @@ export default function RootLayout({
         <Navbar />
 
         {/* Main Content */}
-        <main className="min-h-screen">
-          <div className="bg-gradient-to-top-left min-h-screen h-full">
-            <div className="bg-gradient-to-bottom-right min-h-screen h-full">
-              <div className="backdrop-blur-2xl min-h-screen h-full">
-                {children}
-              </div>
+        <main className="">
+          <div className="bg-gradient-to-top-left h-full">
+            <div className="bg-gradient-to-bottom-right h-full">
+              <div className="backdrop-blur-2xl h-full">{children}</div>
             </div>
           </div>
         </main>
