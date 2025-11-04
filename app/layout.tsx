@@ -1,7 +1,9 @@
-import type { Metadata } from "next";
+"use client";
+
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import Link from "next/link";
+import { useState } from "react";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -13,16 +15,15 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-export const metadata: Metadata = {
-  title: "Fight Club - CS2 Tournament",
-  description: "Counter-Strike 2 Tournament Leaderboard and Rankings",
-};
+// Metadata moved to separate metadata.ts file since this is now a client component
 
 export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
   return (
     <html lang="en">
       <body
@@ -80,15 +81,14 @@ export default function RootLayout({
 
               {/* Live Indicator & Admin */}
               <div className="flex items-center space-x-6">
-                <div className="relative flex items-center">
-                  <span className="flex h-3 w-3">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                    <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
-                  </span>
-                  <span className="ml-2 text-sm font-semibold text-red-400">
-                    LIVE
-                  </span>
-                </div>
+                {/* Buy Me a Coffee Button */}
+                <button
+                  onClick={() => setIsModalOpen(true)}
+                  className="flex items-center space-x-2 bg-yellow-500 hover:bg-yellow-600 text-black px-4 py-2 rounded-lg transition-all duration-200 font-medium text-sm shadow-lg hover:shadow-yellow-500/50"
+                >
+                  <span className="text-lg">☕</span>
+                  <span>Buy Me a Coffee</span>
+                </button>
               </div>
             </div>
           </div>
@@ -235,6 +235,95 @@ export default function RootLayout({
             </div>
           </div>
         </footer>
+
+        {/* Buy Me a Coffee Modal */}
+        {isModalOpen && (
+          <div
+            className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4"
+            onClick={() => setIsModalOpen(false)}
+          >
+            <div
+              className="bg-gray-900 rounded-2xl shadow-2xl max-w-md w-full border border-gray-800 p-8 relative"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Close Button */}
+              <button
+                onClick={() => setIsModalOpen(false)}
+                className="absolute top-4 right-4 text-gray-400 hover:text-white transition-colors"
+              >
+                <svg
+                  className="w-6 h-6"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M6 18L18 6M6 6l12 12"
+                  />
+                </svg>
+              </button>
+
+              {/* Modal Content */}
+              <div className="text-center mb-6">
+                <div className="text-6xl mb-4">☕</div>
+                <h2 className="text-2xl font-bold text-white mb-2">
+                  Buy Me a Coffee
+                </h2>
+                <p className="text-gray-400 text-sm">
+                  Support the tournament! Your contribution helps keep the
+                  lights on.
+                </p>
+              </div>
+
+              {/* Bank Information */}
+              <div className="space-y-4">
+                {/* Socialpay */}
+                <div className="bg-gray-800 rounded-lg p-4 border border-gray-700">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-gray-400 text-sm font-medium">
+                      Socialpay
+                    </span>
+                    <button
+                      onClick={() => navigator.clipboard.writeText("88223402")}
+                      className="text-yellow-500 hover:text-yellow-400 text-xs"
+                    >
+                      Copy
+                    </button>
+                  </div>
+                  <p className="text-white font-mono text-lg">88223402</p>
+                </div>
+
+                {/* Golomt Bank */}
+                <div className="bg-gray-800 rounded-lg p-4 border border-gray-700">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-gray-400 text-sm font-medium">
+                      Golomt Bank
+                    </span>
+                    <button
+                      onClick={() =>
+                        navigator.clipboard.writeText("2205147374")
+                      }
+                      className="text-yellow-500 hover:text-yellow-400 text-xs"
+                    >
+                      Copy
+                    </button>
+                  </div>
+                  <p className="text-white font-mono text-lg">2205147374</p>
+                </div>
+              </div>
+
+              {/* Thank You Message */}
+              <div className="mt-6 pt-6 border-t border-gray-800">
+                <p className="text-center text-gray-400 text-sm">
+                  Thank you for your support! 🙏
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
       </body>
     </html>
   );
