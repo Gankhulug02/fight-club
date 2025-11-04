@@ -29,11 +29,49 @@ interface MatchWithTeams extends Match {
   team2?: Team;
 }
 
+interface MatchMap {
+  id: number;
+  match_id: number;
+  map_number: number;
+  team1_score: number;
+  team2_score: number;
+  winner_team_id: number | null;
+  map_name: string | null;
+  status: "scheduled" | "live" | "completed" | "cancelled";
+}
+
+interface Player {
+  id: number;
+  name: string;
+  avatar: string;
+}
+
+interface MapPlayerStats {
+  id: number;
+  map_id: number;
+  player_id: number;
+  team_id: number;
+  kills: number;
+  assists: number;
+  deaths: number;
+  player?: Player;
+}
+
 export default function MatchesPage() {
   const [matches, setMatches] = useState<MatchWithTeams[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [expandedMatches, setExpandedMatches] = useState<Set<number>>(
+    new Set()
+  );
+  const [mapsData, setMapsData] = useState<Record<number, MatchMap[]>>({});
+  const [expandedMaps, setExpandedMaps] = useState<Set<number>>(new Set());
+  const [playerStatsData, setPlayerStatsData] = useState<
+    Record<number, MapPlayerStats[]>
+  >({});
+  const [loadingMaps, setLoadingMaps] = useState<Set<number>>(new Set());
+  const [loadingStats, setLoadingStats] = useState<Set<number>>(new Set());
 
   useEffect(() => {
     fetchMatches();
@@ -73,6 +111,107 @@ export default function MatchesPage() {
       setError("Failed to load matches. Please try again.");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchMatchMaps = async (matchId: number) => {
+    try {
+      setLoadingMaps((prev) => new Set(prev).add(matchId));
+
+      const { data: mapsData, error: mapsError } = await supabase
+        .from("match_maps")
+        .select("*")
+        .eq("match_id", matchId)
+        .order("map_number");
+
+      if (mapsError) throw mapsError;
+
+      setMapsData((prev) => ({
+        ...prev,
+        [matchId]: mapsData || [],
+      }));
+    } catch (err) {
+      console.error("Error fetching maps:", err);
+    } finally {
+      setLoadingMaps((prev) => {
+        const newSet = new Set(prev);
+        newSet.delete(matchId);
+        return newSet;
+      });
+    }
+  };
+
+  const fetchMapPlayerStats = async (mapId: number) => {
+    try {
+      setLoadingStats((prev) => new Set(prev).add(mapId));
+
+      const { data: statsData, error: statsError } = await supabase
+        .from("map_player_stats")
+        .select(
+          `
+          *,
+          player:players(id, name, avatar)
+        `
+        )
+        .eq("map_id", mapId)
+        .order("kills", { ascending: false });
+
+      if (statsError) throw statsError;
+
+      setPlayerStatsData((prev) => ({
+        ...prev,
+        [mapId]: statsData || [],
+      }));
+    } catch (err) {
+      console.error("Error fetching player stats:", err);
+    } finally {
+      setLoadingStats((prev) => {
+        const newSet = new Set(prev);
+        newSet.delete(mapId);
+        return newSet;
+      });
+    }
+  };
+
+  const toggleMatchExpansion = async (matchId: number) => {
+    const isExpanded = expandedMatches.has(matchId);
+
+    if (isExpanded) {
+      // Collapse
+      setExpandedMatches((prev) => {
+        const newSet = new Set(prev);
+        newSet.delete(matchId);
+        return newSet;
+      });
+    } else {
+      // Expand
+      setExpandedMatches((prev) => new Set(prev).add(matchId));
+
+      // Fetch maps if not already fetched
+      if (!mapsData[matchId]) {
+        await fetchMatchMaps(matchId);
+      }
+    }
+  };
+
+  const toggleMapExpansion = async (mapId: number) => {
+    const isExpanded = expandedMaps.has(mapId);
+
+    if (isExpanded) {
+      // Collapse
+      setExpandedMaps((prev) => {
+        const newSet = new Set(prev);
+        newSet.delete(mapId);
+        return newSet;
+      });
+    } else {
+      // Expand
+      setExpandedMaps((prev) => new Set(prev).add(mapId));
+
+      // Fetch player stats if not already fetched
+      if (!playerStatsData[mapId]) {
+        await fetchMapPlayerStats(mapId);
+      }
     }
   };
 
@@ -125,7 +264,7 @@ export default function MatchesPage() {
 
   if (loading) {
     return (
-      <div className="bg-gradient-to-br from-black via-gray-950 to-black min-h-screen p-8 flex items-center justify-center">
+      <div className="bg-linear-to-br from-black via-gray-950 to-black min-h-screen p-8 flex items-center justify-center">
         <div className="text-white text-xl">Loading matches...</div>
       </div>
     );
@@ -133,14 +272,14 @@ export default function MatchesPage() {
 
   if (error) {
     return (
-      <div className="bg-gradient-to-br from-black via-gray-950 to-black min-h-screen p-8 flex items-center justify-center">
+      <div className="bg-linear-to-br from-black via-gray-950 to-black min-h-screen p-8 flex items-center justify-center">
         <div className="text-red-400 text-xl">{error}</div>
       </div>
     );
   }
 
   return (
-    <div className="bg-gradient-to-br from-black via-gray-950 to-black min-h-screen p-8">
+    <div className="bg-linear-to-br from-black via-gray-950 to-black min-h-screen p-8">
       <div className="max-w-7xl mx-auto space-y-6">
         {/* Header */}
         <div className="mb-8">
@@ -249,12 +388,20 @@ export default function MatchesPage() {
                 match.status === "completed" &&
                 match.team1_score === match.team2_score;
 
+              const isMatchExpanded = expandedMatches.has(match.id);
+              const matchMaps = mapsData[match.id] || [];
+              const isLoadingMaps = loadingMaps.has(match.id);
+
               return (
                 <div
                   key={match.id}
                   className="bg-gray-900/50 backdrop-blur-sm rounded-2xl border border-gray-800 overflow-hidden hover:border-gray-700 transition-all duration-200"
                 >
-                  <div className="p-6">
+                  {/* Match Card - Clickable */}
+                  <div
+                    className="p-6 cursor-pointer hover:bg-gray-900/70 transition-colors"
+                    onClick={() => toggleMatchExpansion(match.id)}
+                  >
                     {/* Match Header - Status and Date */}
                     <div className="flex items-center justify-between mb-4">
                       <div className="flex items-center space-x-3">
@@ -278,6 +425,10 @@ export default function MatchesPage() {
                             ❌ Cancelled
                           </span>
                         )}
+                        {/* Expand/Collapse Indicator */}
+                        <span className="text-gray-400 text-sm">
+                          {isMatchExpanded ? "▼" : "▶"}
+                        </span>
                       </div>
                       <div className="text-right">
                         <div className="text-gray-400 text-sm">
@@ -293,36 +444,40 @@ export default function MatchesPage() {
                     <div className="grid grid-cols-7 gap-4 items-center">
                       {/* Team 1 */}
                       <div className="col-span-3">
-                        <Link
-                          href={`/teams/${match.team1_id}`}
+                        <div
                           className="flex items-center space-x-3 group"
+                          onClick={(e) => e.stopPropagation()}
                         >
-                          <div
-                            className={`text-4xl transition-transform group-hover:scale-110 ${
-                              team1Won ? "animate-bounce" : ""
-                            }`}
-                          >
-                            {match.team1?.logo || "❓"}
-                          </div>
-                          <div className="flex-1">
+                          <Link href={`/teams/${match.team1_id}`}>
                             <div
-                              className={`text-xl font-bold group-hover:text-blue-400 transition-colors ${
-                                team1Won
-                                  ? "text-green-400"
-                                  : team2Won
-                                  ? "text-gray-500"
-                                  : "text-white"
+                              className={`text-4xl transition-transform group-hover:scale-110 ${
+                                team1Won ? "animate-bounce" : ""
                               }`}
                             >
-                              {match.team1?.name || "Unknown Team"}
+                              {match.team1?.logo || "❓"}
                             </div>
+                          </Link>
+                          <div className="flex-1">
+                            <Link href={`/teams/${match.team1_id}`}>
+                              <div
+                                className={`text-xl font-bold hover:text-blue-400 transition-colors ${
+                                  team1Won
+                                    ? "text-green-400"
+                                    : team2Won
+                                    ? "text-gray-500"
+                                    : "text-white"
+                                }`}
+                              >
+                                {match.team1?.name || "Unknown Team"}
+                              </div>
+                            </Link>
                             {team1Won && (
                               <div className="text-xs text-green-400 font-semibold">
                                 🏆 Winner
                               </div>
                             )}
                           </div>
-                        </Link>
+                        </div>
                       </div>
 
                       {/* Score */}
@@ -349,39 +504,279 @@ export default function MatchesPage() {
 
                       {/* Team 2 */}
                       <div className="col-span-3">
-                        <Link
-                          href={`/teams/${match.team2_id}`}
+                        <div
                           className="flex items-center space-x-3 group flex-row-reverse"
+                          onClick={(e) => e.stopPropagation()}
                         >
-                          <div
-                            className={`text-4xl transition-transform group-hover:scale-110 ${
-                              team2Won ? "animate-bounce" : ""
-                            }`}
-                          >
-                            {match.team2?.logo || "❓"}
-                          </div>
-                          <div className="flex-1 text-right">
+                          <Link href={`/teams/${match.team2_id}`}>
                             <div
-                              className={`text-xl font-bold group-hover:text-blue-400 transition-colors ${
-                                team2Won
-                                  ? "text-green-400"
-                                  : team1Won
-                                  ? "text-gray-500"
-                                  : "text-white"
+                              className={`text-4xl transition-transform group-hover:scale-110 ${
+                                team2Won ? "animate-bounce" : ""
                               }`}
                             >
-                              {match.team2?.name || "Unknown Team"}
+                              {match.team2?.logo || "❓"}
                             </div>
+                          </Link>
+                          <div className="flex-1 text-right">
+                            <Link href={`/teams/${match.team2_id}`}>
+                              <div
+                                className={`text-xl font-bold hover:text-blue-400 transition-colors ${
+                                  team2Won
+                                    ? "text-green-400"
+                                    : team1Won
+                                    ? "text-gray-500"
+                                    : "text-white"
+                                }`}
+                              >
+                                {match.team2?.name || "Unknown Team"}
+                              </div>
+                            </Link>
                             {team2Won && (
                               <div className="text-xs text-green-400 font-semibold">
                                 🏆 Winner
                               </div>
                             )}
                           </div>
-                        </Link>
+                        </div>
                       </div>
                     </div>
                   </div>
+
+                  {/* Expanded Maps Section */}
+                  {isMatchExpanded && (
+                    <div className="border-t border-gray-800 bg-gray-950/50 p-6">
+                      {isLoadingMaps ? (
+                        <div className="text-center text-gray-400 py-4">
+                          Loading maps...
+                        </div>
+                      ) : matchMaps.length === 0 ? (
+                        <div className="text-center text-gray-400 py-4">
+                          No maps data available for this match.
+                        </div>
+                      ) : (
+                        <div className="space-y-3">
+                          <h3 className="text-white font-semibold mb-3 flex items-center space-x-2">
+                            <span>🗺️</span>
+                            <span>Maps Played</span>
+                          </h3>
+                          {matchMaps.map((map) => {
+                            const isMapExpanded = expandedMaps.has(map.id);
+                            const mapStats = playerStatsData[map.id] || [];
+                            const isLoadingStats = loadingStats.has(map.id);
+                            const mapWinnerTeam =
+                              map.winner_team_id === match.team1_id
+                                ? match.team1
+                                : map.winner_team_id === match.team2_id
+                                ? match.team2
+                                : null;
+
+                            return (
+                              <div
+                                key={map.id}
+                                className="bg-gray-900 rounded-xl border border-gray-700 overflow-hidden"
+                              >
+                                {/* Map Header - Clickable */}
+                                <div
+                                  className="p-4 cursor-pointer hover:bg-gray-800/50 transition-colors"
+                                  onClick={() => toggleMapExpansion(map.id)}
+                                >
+                                  <div className="flex items-center justify-between">
+                                    <div className="flex items-center space-x-3">
+                                      <span className="text-gray-400">
+                                        {isMapExpanded ? "▼" : "▶"}
+                                      </span>
+                                      <span className="text-white font-medium">
+                                        Map {map.map_number}
+                                        {map.map_name && ` - ${map.map_name}`}
+                                      </span>
+                                      {map.status === "live" && (
+                                        <span className="text-xs px-2 py-1 bg-red-500/20 text-red-400 rounded">
+                                          LIVE
+                                        </span>
+                                      )}
+                                    </div>
+                                    <div className="flex items-center space-x-4">
+                                      <div className="text-white font-bold">
+                                        {map.team1_score} - {map.team2_score}
+                                      </div>
+                                      {mapWinnerTeam && (
+                                        <div className="text-sm text-green-400 flex items-center space-x-1">
+                                          <span>{mapWinnerTeam.logo}</span>
+                                          <span>{mapWinnerTeam.name}</span>
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+                                </div>
+
+                                {/* Expanded Player Stats */}
+                                {isMapExpanded && (
+                                  <div className="border-t border-gray-700 bg-black/30 p-4">
+                                    {isLoadingStats ? (
+                                      <div className="text-center text-gray-400 py-4">
+                                        Loading player statistics...
+                                      </div>
+                                    ) : mapStats.length === 0 ? (
+                                      <div className="text-center text-gray-400 py-4">
+                                        No player statistics available for this
+                                        map.
+                                      </div>
+                                    ) : (
+                                      <div className="space-y-4">
+                                        <h4 className="text-white font-medium text-sm mb-3">
+                                          Player Statistics
+                                        </h4>
+
+                                        {/* Team 1 Players */}
+                                        <div>
+                                          <div className="text-xs text-gray-400 mb-2 flex items-center space-x-2">
+                                            <span>{match.team1?.logo}</span>
+                                            <span>{match.team1?.name}</span>
+                                          </div>
+                                          <div className="space-y-2">
+                                            {mapStats
+                                              .filter(
+                                                (stat) =>
+                                                  stat.team_id ===
+                                                  match.team1_id
+                                              )
+                                              .map((stat) => (
+                                                <div
+                                                  key={stat.id}
+                                                  className="bg-gray-800/50 rounded-lg p-3 flex items-center justify-between"
+                                                >
+                                                  <div className="flex items-center space-x-3">
+                                                    <div className="text-2xl">
+                                                      {stat.player?.avatar ||
+                                                        "👤"}
+                                                    </div>
+                                                    <div>
+                                                      <div className="text-white font-medium text-sm">
+                                                        {stat.player?.name ||
+                                                          "Unknown Player"}
+                                                      </div>
+                                                      <div className="text-xs text-gray-400">
+                                                        K/D:{" "}
+                                                        {stat.deaths > 0
+                                                          ? (
+                                                              stat.kills /
+                                                              stat.deaths
+                                                            ).toFixed(2)
+                                                          : stat.kills}
+                                                      </div>
+                                                    </div>
+                                                  </div>
+                                                  <div className="flex space-x-4 text-sm">
+                                                    <div className="text-center">
+                                                      <div className="text-green-400 font-bold">
+                                                        {stat.kills}
+                                                      </div>
+                                                      <div className="text-xs text-gray-500">
+                                                        K
+                                                      </div>
+                                                    </div>
+                                                    <div className="text-center">
+                                                      <div className="text-blue-400 font-bold">
+                                                        {stat.assists}
+                                                      </div>
+                                                      <div className="text-xs text-gray-500">
+                                                        A
+                                                      </div>
+                                                    </div>
+                                                    <div className="text-center">
+                                                      <div className="text-red-400 font-bold">
+                                                        {stat.deaths}
+                                                      </div>
+                                                      <div className="text-xs text-gray-500">
+                                                        D
+                                                      </div>
+                                                    </div>
+                                                  </div>
+                                                </div>
+                                              ))}
+                                          </div>
+                                        </div>
+
+                                        {/* Team 2 Players */}
+                                        <div>
+                                          <div className="text-xs text-gray-400 mb-2 flex items-center space-x-2">
+                                            <span>{match.team2?.logo}</span>
+                                            <span>{match.team2?.name}</span>
+                                          </div>
+                                          <div className="space-y-2">
+                                            {mapStats
+                                              .filter(
+                                                (stat) =>
+                                                  stat.team_id ===
+                                                  match.team2_id
+                                              )
+                                              .map((stat) => (
+                                                <div
+                                                  key={stat.id}
+                                                  className="bg-gray-800/50 rounded-lg p-3 flex items-center justify-between"
+                                                >
+                                                  <div className="flex items-center space-x-3">
+                                                    <div className="text-2xl">
+                                                      {stat.player?.avatar ||
+                                                        "👤"}
+                                                    </div>
+                                                    <div>
+                                                      <div className="text-white font-medium text-sm">
+                                                        {stat.player?.name ||
+                                                          "Unknown Player"}
+                                                      </div>
+                                                      <div className="text-xs text-gray-400">
+                                                        K/D:{" "}
+                                                        {stat.deaths > 0
+                                                          ? (
+                                                              stat.kills /
+                                                              stat.deaths
+                                                            ).toFixed(2)
+                                                          : stat.kills}
+                                                      </div>
+                                                    </div>
+                                                  </div>
+                                                  <div className="flex space-x-4 text-sm">
+                                                    <div className="text-center">
+                                                      <div className="text-green-400 font-bold">
+                                                        {stat.kills}
+                                                      </div>
+                                                      <div className="text-xs text-gray-500">
+                                                        K
+                                                      </div>
+                                                    </div>
+                                                    <div className="text-center">
+                                                      <div className="text-blue-400 font-bold">
+                                                        {stat.assists}
+                                                      </div>
+                                                      <div className="text-xs text-gray-500">
+                                                        A
+                                                      </div>
+                                                    </div>
+                                                    <div className="text-center">
+                                                      <div className="text-red-400 font-bold">
+                                                        {stat.deaths}
+                                                      </div>
+                                                      <div className="text-xs text-gray-500">
+                                                        D
+                                                      </div>
+                                                    </div>
+                                                  </div>
+                                                </div>
+                                              ))}
+                                          </div>
+                                        </div>
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               );
             })
