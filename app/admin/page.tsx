@@ -15,7 +15,6 @@ export default function AdminPage() {
       icon: "👥",
       href: "/admin/teams",
       color: "blue",
-      stats: `${stats.totalTeams} Teams`,
     },
     {
       title: "Players",
@@ -23,7 +22,6 @@ export default function AdminPage() {
       icon: "🎮",
       href: "/admin/players",
       color: "green",
-      stats: `${stats.totalPlayers} Players`,
     },
     {
       title: "Matches",
@@ -32,7 +30,6 @@ export default function AdminPage() {
       icon: "⚔️",
       href: "/admin/matches",
       color: "purple",
-      stats: `${stats.totalMatches} Matches`,
     },
     {
       title: "Settings",
@@ -131,9 +128,6 @@ export default function AdminPage() {
                     <div className="text-6xl group-hover:scale-110 transition-transform">
                       {section.icon}
                     </div>
-                    <div className="px-3 py-1 bg-white/10 rounded-full text-sm text-white font-medium">
-                      {section.stats}
-                    </div>
                   </div>
                   <h3 className="text-2xl font-bold text-white mb-2 group-hover:text-blue-400 transition-colors">
                     {section.title}
@@ -198,36 +192,6 @@ export default function AdminPage() {
               <div className="flex justify-between items-center">
                 <span className="text-gray-400">Tournament</span>
                 <span className="text-white font-semibold">Fight Club</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-gray-400">Format</span>
-                <span className="text-white font-semibold">Round Robin</span>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-gray-900/50 backdrop-blur-sm rounded-2xl border border-gray-800 p-6">
-            <h3 className="text-xl font-bold text-white mb-4">
-              Recent Activity
-            </h3>
-            <div className="space-y-3">
-              <div className="text-sm">
-                <div className="text-gray-400">5 minutes ago</div>
-                <div className="text-white">
-                  Match completed: FaZe Clan vs Vitality
-                </div>
-              </div>
-              <div className="text-sm">
-                <div className="text-gray-400">25 minutes ago</div>
-                <div className="text-white">Match started: G2 vs NAVI</div>
-              </div>
-              <div className="text-sm">
-                <div className="text-gray-400">1 hour ago</div>
-                <div className="text-white">Team roster updated: FaZe Clan</div>
-              </div>
-              <div className="text-sm">
-                <div className="text-gray-400">2 hours ago</div>
-                <div className="text-white">New match scheduled</div>
               </div>
             </div>
           </div>
