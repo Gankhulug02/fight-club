@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { memo } from "react";
 import { PlayerStats } from "./types";
 
@@ -9,12 +10,13 @@ interface PlayerRowProps {
 
 function PlayerRow({ playerStats: ps, rank }: PlayerRowProps) {
   const isTopThree = rank < 3;
+  // const isTopFive = rank < 5;
   const rankIcons = ["🥇", "🥈", "🥉"];
 
   return (
-    <tr className="hover:bg-gray-800/30 transition-colors duration-150">
-      <td className="px-6 py-4 whitespace-nowrap">
-        <div className="text-lg font-bold text-white">
+    <tr className="hover:bg-gray-800/30 transition-colors duration-150 relative">
+      <td className="px-6 py-4 whitespace-nowrap relative">
+        <div className="text-lg font-bold text-white flex items-center gap-2">
           {isTopThree ? (
             <span className="text-2xl">{rankIcons[rank]}</span>
           ) : (
@@ -22,7 +24,18 @@ function PlayerRow({ playerStats: ps, rank }: PlayerRowProps) {
           )}
         </div>
       </td>
-      <td className="px-6 py-4 whitespace-nowrap">
+      <td className="px-6 py-4 whitespace-nowrap relative">
+        {isTopThree && (
+          <div className="absolute top-0 left-0 w-full h-full">
+            <Image
+              src="/gif/lightning.gif"
+              alt="Lightning"
+              fill
+              className="object-cover opacity-30"
+              unoptimized
+            />
+          </div>
+        )}
         <div className="flex items-center space-x-3">
           <span className="text-3xl">{ps.player.avatar}</span>
           <div>
@@ -32,7 +45,7 @@ function PlayerRow({ playerStats: ps, rank }: PlayerRowProps) {
           </div>
         </div>
       </td>
-      <td className="px-6 py-4 whitespace-nowrap">
+      <td className="px-6 py-4 whitespace-nowrap relative z-10">
         {ps.team ? (
           <Link
             href={`/teams/${ps.team.id}`}
@@ -47,22 +60,22 @@ function PlayerRow({ playerStats: ps, rank }: PlayerRowProps) {
           <span className="text-gray-500">No team</span>
         )}
       </td>
-      <td className="px-6 py-4 whitespace-nowrap">
+      <td className="px-6 py-4 whitespace-nowrap relative z-10">
         <span className="text-gray-300">{ps.player.role}</span>
       </td>
-      <td className="px-6 py-4 whitespace-nowrap text-center">
+      <td className="px-6 py-4 whitespace-nowrap text-center relative z-10">
         <span className="text-blue-400 font-semibold">{ps.maps_played}</span>
       </td>
-      <td className="px-6 py-4 whitespace-nowrap text-center">
+      <td className="px-6 py-4 whitespace-nowrap text-center relative z-10">
         <span className="text-green-400 font-bold text-lg">{ps.kills}</span>
       </td>
-      <td className="px-6 py-4 whitespace-nowrap text-center">
+      <td className="px-6 py-4 whitespace-nowrap text-center relative z-10">
         <span className="text-yellow-400 font-bold text-lg">{ps.assists}</span>
       </td>
-      <td className="px-6 py-4 whitespace-nowrap text-center">
+      <td className="px-6 py-4 whitespace-nowrap text-center relative z-10">
         <span className="text-red-400 font-bold text-lg">{ps.deaths}</span>
       </td>
-      <td className="px-6 py-4 whitespace-nowrap text-center">
+      <td className="px-6 py-4 whitespace-nowrap text-center relative z-10">
         <span
           className={`inline-flex items-center px-3 py-1 rounded-full font-bold text-base ${
             ps.kd_ratio >= 1.5
@@ -80,4 +93,3 @@ function PlayerRow({ playerStats: ps, rank }: PlayerRowProps) {
 }
 
 export default memo(PlayerRow);
-
