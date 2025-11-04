@@ -136,7 +136,7 @@ export default function Home() {
 
   if (loading) {
     return (
-      <div className="bg-gradient-to-br from-black via-gray-950 to-black min-h-screen p-8 flex items-center justify-center">
+      <div className="bg-gradient min-h-screen p-8 flex items-center justify-center">
         <div className="text-white text-xl">Loading leaderboard...</div>
       </div>
     );
@@ -144,14 +144,14 @@ export default function Home() {
 
   if (error) {
     return (
-      <div className="bg-gradient-to-br from-black via-gray-950 to-black min-h-screen p-8 flex items-center justify-center">
+      <div className="bg-gradient min-h-screen p-8 flex items-center justify-center">
         <div className="text-red-400 text-xl">{error}</div>
       </div>
     );
   }
 
   return (
-    <div className="bg-gradient-to-br from-black via-gray-950 to-black p-8">
+    <div className="bg-gradient p-8">
       <div className="max-w-6xl mx-auto">
         {/* Page Header */}
         <div className="mb-8 text-center">

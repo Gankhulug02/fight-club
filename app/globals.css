@@ -1,5 +1,10 @@
 @import "tailwindcss";
 
+/* Custom gradient background */
+.bg-gradient {
+  background: linear-gradient(to bottom right, #000000, #030712, #000000);
+}
+
 /* :root {
   --background: #ffffff;
   --foreground: #171717;
