@@ -59,10 +59,21 @@ export default function PlayersPage() {
 
       if (teamsError) throw teamsError;
 
-      // Fetch all map player stats
+      // Fetch map player stats only from completed matches
       const { data: statsData, error: statsError } = await supabase
         .from("map_player_stats")
-        .select("*");
+        .select(
+          `
+          *,
+          match_maps!inner (
+            id,
+            matches!inner (
+              status
+            )
+          )
+        `
+        )
+        .eq("match_maps.status", "completed");
 
       if (statsError) throw statsError;
 
@@ -390,7 +401,7 @@ export default function PlayersPage() {
                                 ? "bg-green-500/20 text-green-400"
                                 : ps.kd_ratio >= 1.0
                                 ? "bg-blue-500/20 text-blue-400"
-                                : "bg-orange-500/20 text-orange-400"
+                                : "bg-gray-500/20 text-[#919191]"
                             }`}
                           >
                             {ps.kd_ratio.toFixed(2)}

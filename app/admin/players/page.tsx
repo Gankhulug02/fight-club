@@ -77,10 +77,21 @@ export default function AdminPlayersPage() {
 
       setTeams(teamsData || []);
 
-      // Fetch all map player stats
+      // Fetch map player stats only from completed matches
       const { data: statsData, error: statsError } = await supabase
         .from("map_player_stats")
-        .select("*");
+        .select(
+          `
+          *,
+          match_maps!inner (
+            id,
+            matches!inner (
+              status
+            )
+          )
+        `
+        )
+        .eq("match_maps.status", "completed");
 
       if (statsError) throw statsError;
 

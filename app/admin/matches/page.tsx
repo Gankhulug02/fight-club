@@ -240,7 +240,7 @@ export default function AdminMatchesPage() {
             team2_score: map.team2_score,
             winner_team_id: winnerId,
             map_name: map.map_name || null,
-            status: map.status,
+            status: formData.status,
           })
           .eq("id", map.id);
 
