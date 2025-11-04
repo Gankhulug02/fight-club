@@ -24,14 +24,14 @@ function PlayerRow({ playerStats: ps, rank }: PlayerRowProps) {
           )}
         </div>
       </td>
-      <td className="px-6 py-4 whitespace-nowrap relative">
+      <td className="px-6 py-4 whitespace-nowrap relative overflow-hidden">
         {isTopThree && (
-          <div className="absolute top-0 left-0 w-full h-full">
+          <div className="absolute -top-1 left-0 w-full h-full z-10">
             <Image
-              src="/gif/lightning.gif"
-              alt="Lightning"
+              src="/gif/blood.gif"
+              alt="Blood"
               fill
-              className="object-cover opacity-30"
+              className="w-full h-full"
               unoptimized
             />
           </div>
@@ -45,7 +45,7 @@ function PlayerRow({ playerStats: ps, rank }: PlayerRowProps) {
           </div>
         </div>
       </td>
-      <td className="px-6 py-4 whitespace-nowrap relative z-10">
+      <td className="px-6 py-4 whitespace-nowrap relative">
         {ps.team ? (
           <Link
             href={`/teams/${ps.team.id}`}
@@ -60,22 +60,22 @@ function PlayerRow({ playerStats: ps, rank }: PlayerRowProps) {
           <span className="text-gray-500">No team</span>
         )}
       </td>
-      <td className="px-6 py-4 whitespace-nowrap relative z-10">
+      <td className="px-6 py-4 whitespace-nowrap relative ">
         <span className="text-gray-300">{ps.player.role}</span>
       </td>
-      <td className="px-6 py-4 whitespace-nowrap text-center relative z-10">
+      <td className="px-6 py-4 whitespace-nowrap text-center relative ">
         <span className="text-blue-400 font-semibold">{ps.maps_played}</span>
       </td>
-      <td className="px-6 py-4 whitespace-nowrap text-center relative z-10">
+      <td className="px-6 py-4 whitespace-nowrap text-center relative ">
         <span className="text-green-400 font-bold text-lg">{ps.kills}</span>
       </td>
-      <td className="px-6 py-4 whitespace-nowrap text-center relative z-10">
+      <td className="px-6 py-4 whitespace-nowrap text-center relative ">
         <span className="text-yellow-400 font-bold text-lg">{ps.assists}</span>
       </td>
-      <td className="px-6 py-4 whitespace-nowrap text-center relative z-10">
+      <td className="px-6 py-4 whitespace-nowrap text-center relative ">
         <span className="text-red-400 font-bold text-lg">{ps.deaths}</span>
       </td>
-      <td className="px-6 py-4 whitespace-nowrap text-center relative z-10">
+      <td className="px-6 py-4 whitespace-nowrap text-center relative ">
         <span
           className={`inline-flex items-center px-3 py-1 rounded-full font-bold text-base ${
             ps.kd_ratio >= 1.5
