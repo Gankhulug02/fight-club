@@ -20,7 +20,18 @@ export function TeamRow({ team, onEdit, onDelete }: TeamRowProps) {
     <tr className="hover:bg-gray-800/30 transition-colors">
       <td className="px-6 py-4">
         <div className="flex items-center space-x-3">
-          <span className="text-3xl">{team.logo}</span>
+          <div className="w-12 h-12 rounded-lg overflow-hidden bg-gray-800 flex items-center justify-center shrink-0">
+            {team.logo ? (
+              /* eslint-disable-next-line @next/next/no-img-element */
+              <img
+                src={team.logo}
+                alt={`${team.name} logo`}
+                className="w-full h-full object-contain"
+              />
+            ) : (
+              <span className="text-2xl">⚡</span>
+            )}
+          </div>
           <div>
             <div className="text-white font-semibold">{team.name}</div>
             <div className="text-gray-400 text-sm">{matchRecord}</div>

@@ -17,6 +17,7 @@ export default function AdminTeamsPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [editingTeam, setEditingTeam] = useState<Team | null>(null);
   const [showAddForm, setShowAddForm] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
   const [formData, setFormData] = useState<TeamFormData>({
     name: "",
     logo: "",
@@ -26,6 +27,38 @@ export default function AdminTeamsPage() {
   useEffect(() => {
     fetchTeams();
   }, []);
+
+  // Upload logo to Supabase Storage
+  const uploadLogo = async (file: File): Promise<string> => {
+    try {
+      // Create unique filename
+      const fileExt = file.name.split(".").pop();
+      const fileName = `${Date.now()}-${Math.random()
+        .toString(36)
+        .substring(7)}.${fileExt}`;
+      const filePath = `team-logos/${fileName}`;
+
+      // Upload file to Supabase Storage
+      const { error: uploadError } = await supabase.storage
+        .from("team-assets")
+        .upload(filePath, file, {
+          cacheControl: "3600",
+          upsert: false,
+        });
+
+      if (uploadError) throw uploadError;
+
+      // Get public URL
+      const {
+        data: { publicUrl },
+      } = supabase.storage.from("team-assets").getPublicUrl(filePath);
+
+      return publicUrl;
+    } catch (error) {
+      console.error("Error uploading logo:", error);
+      throw new Error("Failed to upload logo");
+    }
+  };
 
   const fetchTeams = async () => {
     try {
@@ -104,13 +137,28 @@ export default function AdminTeamsPage() {
       return;
     }
 
+    if (!formData.logo) {
+      alert("Please upload a team logo");
+      return;
+    }
+
     try {
+      setIsUploading(true);
+
+      // Upload logo if it's a file
+      let logoUrl = "";
+      if (formData.logo instanceof File) {
+        logoUrl = await uploadLogo(formData.logo);
+      } else {
+        logoUrl = formData.logo;
+      }
+
       const { error } = await supabase
         .from("teams")
         .insert([
           {
             name: formData.name,
-            logo: formData.logo || "⚡",
+            logo: logoUrl,
           },
         ])
         .select();
@@ -128,6 +176,8 @@ export default function AdminTeamsPage() {
     } catch (err) {
       console.error("Error adding team:", err);
       alert("Failed to add team. Please try again.");
+    } finally {
+      setIsUploading(false);
     }
   };
 
@@ -135,12 +185,27 @@ export default function AdminTeamsPage() {
   const handleUpdateTeam = async () => {
     if (!editingTeam) return;
 
+    if (!formData.name.trim()) {
+      alert("Please enter a team name");
+      return;
+    }
+
     try {
+      setIsUploading(true);
+
+      // Upload logo if it's a new file
+      let logoUrl = "";
+      if (formData.logo instanceof File) {
+        logoUrl = await uploadLogo(formData.logo);
+      } else {
+        logoUrl = formData.logo as string;
+      }
+
       const { error } = await supabase
         .from("teams")
         .update({
           name: formData.name,
-          logo: formData.logo,
+          logo: logoUrl,
         })
         .eq("id", editingTeam.id);
 
@@ -157,6 +222,8 @@ export default function AdminTeamsPage() {
     } catch (err) {
       console.error("Error updating team:", err);
       alert("Failed to update team. Please try again.");
+    } finally {
+      setIsUploading(false);
     }
   };
 
@@ -271,6 +338,7 @@ export default function AdminTeamsPage() {
             onFormDataChange={setFormData}
             onSubmit={editingTeam ? handleUpdateTeam : handleAddTeam}
             onCancel={cancelEdit}
+            isUploading={isUploading}
           />
         )}
       </div>

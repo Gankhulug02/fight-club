@@ -11,7 +11,7 @@ export interface Team {
 
 export interface TeamFormData {
   name: string;
-  logo: string;
+  logo: string | File;
 }
 
 export interface TeamStats {
