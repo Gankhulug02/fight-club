@@ -3,22 +3,12 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
-
-interface Team {
-  id: number;
-  name: string;
-  logo: string;
-  rounds_won: number;
-  rounds_lost: number;
-  matches_won: number;
-  matches_lost: number;
-  created_at?: string;
-}
-
-interface TeamFormData {
-  name: string;
-  logo: string;
-}
+import {
+  TeamsTable,
+  TeamForm,
+  Team,
+  TeamFormData,
+} from "@/components/admin/teams";
 
 export default function AdminTeamsPage() {
   const [teams, setTeams] = useState<Team[]>([]);
@@ -209,11 +199,6 @@ export default function AdminTeamsPage() {
     });
   };
 
-  // Filter teams based on search
-  const filteredTeams = teams.filter((team) =>
-    team.name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
-
   if (loading) {
     return (
       <div className=" min-h-screen p-8 flex items-center justify-center">
@@ -270,223 +255,23 @@ export default function AdminTeamsPage() {
         )}
 
         {/* Teams Table */}
-        <div className="bg-gray-900/50 backdrop-blur-sm rounded-2xl border border-gray-800 overflow-hidden">
-          <div className="p-6 border-b border-gray-800">
-            <div className="flex items-center justify-between">
-              <h2 className="text-xl font-bold text-white">
-                All Teams ({filteredTeams.length})
-              </h2>
-              <input
-                type="text"
-                placeholder="Search teams..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-blue-500"
-              />
-            </div>
-          </div>
-
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="bg-black/50 border-b border-gray-800">
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-400 uppercase">
-                    Team
-                  </th>
-                  <th className="px-6 py-4 text-center text-xs font-semibold text-gray-400 uppercase">
-                    W
-                  </th>
-                  <th className="px-6 py-4 text-center text-xs font-semibold text-gray-400 uppercase">
-                    L
-                  </th>
-                  <th className="px-6 py-4 text-center text-xs font-semibold text-gray-400 uppercase">
-                    Rounds Won
-                  </th>
-                  <th className="px-6 py-4 text-center text-xs font-semibold text-gray-400 uppercase">
-                    Rounds Lost
-                  </th>
-                  <th className="px-6 py-4 text-center text-xs font-semibold text-gray-400 uppercase">
-                    Round Diff
-                  </th>
-                  <th className="px-6 py-4 text-center text-xs font-semibold text-gray-400 uppercase">
-                    Match Win %
-                  </th>
-                  <th className="px-6 py-4 text-center text-xs font-semibold text-gray-400 uppercase">
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-800">
-                {filteredTeams.length === 0 ? (
-                  <tr>
-                    <td
-                      colSpan={8}
-                      className="px-6 py-8 text-center text-gray-400"
-                    >
-                      {searchQuery
-                        ? "No teams found matching your search."
-                        : "No teams yet. Add one to get started!"}
-                    </td>
-                  </tr>
-                ) : (
-                  filteredTeams.map((team) => {
-                    const roundDiff = team.rounds_won - team.rounds_lost;
-                    const totalMatches = team.matches_won + team.matches_lost;
-                    const matchWinRate =
-                      totalMatches > 0
-                        ? ((team.matches_won / totalMatches) * 100).toFixed(1)
-                        : "0.0";
-                    const matchRecord = `${team.matches_won}-${team.matches_lost}`;
-
-                    return (
-                      <tr
-                        key={team.id}
-                        className="hover:bg-gray-800/30 transition-colors"
-                      >
-                        <td className="px-6 py-4">
-                          <div className="flex items-center space-x-3">
-                            <span className="text-3xl">{team.logo}</span>
-                            <div>
-                              <div className="text-white font-semibold">
-                                {team.name}
-                              </div>
-                              <div className="text-gray-400 text-sm">
-                                {matchRecord}
-                              </div>
-                            </div>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 text-center">
-                          <span className="text-green-400 font-semibold text-lg">
-                            {team.matches_won}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 text-center">
-                          <span className="text-red-400 font-semibold text-lg">
-                            {team.matches_lost}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 text-center">
-                          <span className="text-green-400 font-semibold">
-                            {team.rounds_won}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 text-center">
-                          <span className="text-red-400 font-semibold">
-                            {team.rounds_lost}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 text-center">
-                          <span
-                            className={`font-semibold ${
-                              roundDiff > 0 ? "text-green-400" : "text-red-400"
-                            }`}
-                          >
-                            {roundDiff > 0 ? "+" : ""}
-                            {roundDiff}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 text-center">
-                          <span
-                            className={`font-semibold ${
-                              parseFloat(matchWinRate) >= 50
-                                ? "text-blue-400"
-                                : "text-yellow-400"
-                            }`}
-                          >
-                            {matchWinRate}%
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 text-center">
-                          <div className="flex items-center justify-center space-x-2">
-                            <Link
-                              href={`/teams/${team.id}`}
-                              className="px-3 py-1 bg-purple-600 hover:bg-purple-700 text-white text-sm rounded transition-colors"
-                            >
-                              View
-                            </Link>
-                            <button
-                              onClick={() => startEditTeam(team)}
-                              className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded transition-colors"
-                            >
-                              Edit
-                            </button>
-                            <button
-                              onClick={() =>
-                                handleDeleteTeam(team.id, team.name)
-                              }
-                              className="px-3 py-1 bg-red-600 hover:bg-red-700 text-white text-sm rounded transition-colors"
-                            >
-                              Delete
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
+        <TeamsTable
+          teams={teams}
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+          onEditTeam={startEditTeam}
+          onDeleteTeam={handleDeleteTeam}
+        />
 
         {/* Add/Edit Team Form */}
         {showAddForm && (
-          <div className="bg-gray-900/50 backdrop-blur-sm rounded-2xl border border-gray-800 p-6">
-            <h3 className="text-xl font-bold text-white mb-4">
-              {editingTeam ? "Edit Team" : "Add New Team"}
-            </h3>
-            <p className="text-gray-400 text-sm mb-4">
-              {editingTeam
-                ? "Update team information. Statistics are calculated from match results."
-                : "Create a new team. Statistics will be automatically calculated from match results."}
-            </p>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-gray-400 text-sm mb-2">
-                  Team Name <span className="text-red-400">*</span>
-                </label>
-                <input
-                  type="text"
-                  placeholder="Enter team name"
-                  value={formData.name}
-                  onChange={(e) =>
-                    setFormData({ ...formData, name: e.target.value })
-                  }
-                  className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-blue-500"
-                />
-              </div>
-              <div>
-                <label className="block text-gray-400 text-sm mb-2">
-                  Logo Emoji
-                </label>
-                <input
-                  type="text"
-                  placeholder="🔥"
-                  value={formData.logo}
-                  onChange={(e) =>
-                    setFormData({ ...formData, logo: e.target.value })
-                  }
-                  maxLength={2}
-                  className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-blue-500"
-                />
-              </div>
-            </div>
-            <div className="mt-4 flex space-x-3">
-              <button
-                onClick={editingTeam ? handleUpdateTeam : handleAddTeam}
-                className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-colors"
-              >
-                {editingTeam ? "Update Team" : "Create Team"}
-              </button>
-              <button
-                onClick={cancelEdit}
-                className="px-6 py-2 bg-gray-700 hover:bg-gray-600 text-white font-semibold rounded-lg transition-colors"
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
+          <TeamForm
+            formData={formData}
+            editingTeam={editingTeam}
+            onFormDataChange={setFormData}
+            onSubmit={editingTeam ? handleUpdateTeam : handleAddTeam}
+            onCancel={cancelEdit}
+          />
         )}
       </div>
     </div>
