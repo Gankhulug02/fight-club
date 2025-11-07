@@ -112,122 +112,66 @@ export default function EditMatchForm({
           Map Results (Best of 3)
         </h4>
         <div className="space-y-4">
-          {editingMaps.map((map, index) => (
-            <div
-              key={`${map.id}-${index}`}
-              className="bg-gray-900/50 p-4 rounded-lg border border-gray-600"
-            >
-              <div className="flex items-center justify-between mb-3">
-                <h5 className="text-white font-semibold">
-                  Map {map.map_number}
-                </h5>
-                <div className="flex items-center space-x-3">
-                  <span className="text-xs text-gray-400">
-                    Winner:{" "}
-                    {map.winner_team_id === parseInt(formData.team1_id)
-                      ? teams.find((t) => t.id === parseInt(formData.team1_id))
-                          ?.name
-                      : map.winner_team_id === parseInt(formData.team2_id)
-                      ? teams.find((t) => t.id === parseInt(formData.team2_id))
-                          ?.name
-                      : "TBD"}
-                  </span>
-                  {editingMaps.length > 2 && (
-                    <button
-                      onClick={() => onDeleteMap(map.id)}
-                      className="px-2 py-1 bg-red-600 hover:bg-red-700 text-white text-xs rounded transition-colors"
-                      title="Delete this map"
-                    >
-                      Delete
-                    </button>
-                  )}
+          {editingMaps.map((map, index) => {
+            return (
+              <div
+                key={`${map.id}-${index}`}
+                className="bg-gray-900/50 p-4 rounded-lg border border-gray-600"
+              >
+                <div className="flex items-center justify-between mb-3">
+                  <h5 className="text-white font-semibold">
+                    Map {map.map_number}
+                  </h5>
+                  <div className="flex items-center space-x-3">
+                    <span className="text-xs text-gray-400">
+                      Winner:{" "}
+                      {map.winner_team_id === parseInt(formData.team1_id)
+                        ? teams.find(
+                            (t) => t.id === parseInt(formData.team1_id)
+                          )?.name
+                        : map.winner_team_id === parseInt(formData.team2_id)
+                        ? teams.find(
+                            (t) => t.id === parseInt(formData.team2_id)
+                          )?.name
+                        : "TBD"}
+                    </span>
+                    {editingMaps.length > 2 && (
+                      <button
+                        onClick={() => onDeleteMap(map.id)}
+                        className="px-2 py-1 bg-red-600 hover:bg-red-700 text-white text-xs rounded transition-colors"
+                        title="Delete this map"
+                      >
+                        Delete
+                      </button>
+                    )}
+                  </div>
                 </div>
-              </div>
-              <div className="mb-4">
-                <label className="block text-gray-400 text-sm mb-2">
-                  Map Name
-                </label>
-                <select
-                  value={map.map_name || ""}
-                  onChange={(e) => {
-                    const newMaps = [...editingMaps];
-                    newMaps[index].map_name = e.target.value;
-                    onMapsChange(newMaps);
-                  }}
-                  className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-blue-500"
-                >
-                  <option value="">Select a map</option>
-                  <option value="Ancient">Ancient</option>
-                  <option value="Dust 2">Dust 2</option>
-                  <option value="Inferno">Inferno</option>
-                  <option value="Mirage">Mirage</option>
-                  <option value="Nuke">Nuke</option>
-                  <option value="Overpass">Overpass</option>
-                  <option value="Null">Null</option>
-                </select>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
+                <div className="mb-4">
                   <label className="block text-gray-400 text-sm mb-2">
-                    {
-                      teams.find((t) => t.id === parseInt(formData.team1_id))
-                        ?.logo
-                    }{" "}
-                    {
-                      teams.find((t) => t.id === parseInt(formData.team1_id))
-                        ?.name
-                    }{" "}
-                    Score
+                    Map Name
                   </label>
-                  <input
-                    type="number"
-                    value={map.team1_score}
+                  <select
+                    value={map.map_name || ""}
                     onChange={(e) => {
                       const newMaps = [...editingMaps];
-                      newMaps[index].team1_score =
-                        parseInt(e.target.value) || 0;
+                      newMaps[index].map_name = e.target.value;
                       onMapsChange(newMaps);
                     }}
-                    min="0"
                     className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-blue-500"
-                  />
+                  >
+                    <option value="">Select a map</option>
+                    <option value="Ancient">Ancient</option>
+                    <option value="Dust 2">Dust 2</option>
+                    <option value="Inferno">Inferno</option>
+                    <option value="Mirage">Mirage</option>
+                    <option value="Nuke">Nuke</option>
+                    <option value="Overpass">Overpass</option>
+                    <option value="Null">Null</option>
+                  </select>
                 </div>
-                <div>
-                  <label className="block text-gray-400 text-sm mb-2">
-                    {
-                      teams.find((t) => t.id === parseInt(formData.team2_id))
-                        ?.logo
-                    }{" "}
-                    {
-                      teams.find((t) => t.id === parseInt(formData.team2_id))
-                        ?.name
-                    }{" "}
-                    Score
-                  </label>
-                  <input
-                    type="number"
-                    value={map.team2_score}
-                    onChange={(e) => {
-                      const newMaps = [...editingMaps];
-                      newMaps[index].team2_score =
-                        parseInt(e.target.value) || 0;
-                      onMapsChange(newMaps);
-                    }}
-                    min="0"
-                    className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-blue-500"
-                  />
-                </div>
-              </div>
-
-              {/* Player Statistics */}
-              <div className="mt-4 pt-4 border-t border-gray-700">
-                <h6 className="text-white font-semibold mb-3">
-                  Player Statistics
-                </h6>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {/* Team 1 Players */}
+                <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <h6 className="text-sm font-semibold text-gray-300 mb-2">
+                    <label className="block text-gray-400 text-sm mb-2">
                       {
                         teams.find((t) => t.id === parseInt(formData.team1_id))
                           ?.logo
@@ -235,109 +179,24 @@ export default function EditMatchForm({
                       {
                         teams.find((t) => t.id === parseInt(formData.team1_id))
                           ?.name
-                      }
-                    </h6>
-                    <div className="space-y-2">
-                      {map.player_stats
-                        ?.filter(
-                          (stat) => stat.team_id === parseInt(formData.team1_id)
-                        )
-                        .map((stat, statIndex) => {
-                          const mapIndex = editingMaps.findIndex(
-                            (m) => m.id === map.id
-                          );
-                          const statsIndex = editingMaps[
-                            mapIndex
-                          ]?.player_stats?.findIndex(
-                            (s) =>
-                              s.player_id === stat.player_id &&
-                              s.team_id === stat.team_id
-                          );
-                          return (
-                            <div
-                              key={`${stat.player_id}-${statIndex}`}
-                              className="bg-gray-800/50 p-2 rounded"
-                            >
-                              <div className="text-xs text-gray-400 mb-1">
-                                {stat.player?.name ||
-                                  `Player ${stat.player_id}`}
-                              </div>
-                              <div className="grid grid-cols-3 gap-2 text-xs text-gray-500 mb-1">
-                                <div className="text-center">Kills</div>
-                                <div className="text-center">Deaths</div>
-                                <div className="text-center">Assists</div>
-                              </div>
-                              <div className="grid grid-cols-3 gap-2">
-                                <input
-                                  type="number"
-                                  placeholder="K"
-                                  value={stat.kills}
-                                  onChange={(e) => {
-                                    const newMaps = [...editingMaps];
-                                    if (
-                                      statsIndex !== undefined &&
-                                      statsIndex !== -1
-                                    ) {
-                                      newMaps[mapIndex].player_stats![
-                                        statsIndex
-                                      ].kills = parseInt(e.target.value) || 0;
-                                      onMapsChange(newMaps);
-                                    }
-                                  }}
-                                  min="0"
-                                  className="w-full px-2 py-1 bg-gray-700 border border-gray-600 rounded text-white text-xs focus:outline-none focus:border-blue-500"
-                                  title="Kills"
-                                />
-                                <input
-                                  type="number"
-                                  placeholder="D"
-                                  value={stat.deaths}
-                                  onChange={(e) => {
-                                    const newMaps = [...editingMaps];
-                                    if (
-                                      statsIndex !== undefined &&
-                                      statsIndex !== -1
-                                    ) {
-                                      newMaps[mapIndex].player_stats![
-                                        statsIndex
-                                      ].deaths = parseInt(e.target.value) || 0;
-                                      onMapsChange(newMaps);
-                                    }
-                                  }}
-                                  min="0"
-                                  className="w-full px-2 py-1 bg-gray-700 border border-gray-600 rounded text-white text-xs focus:outline-none focus:border-blue-500"
-                                  title="Deaths"
-                                />
-                                <input
-                                  type="number"
-                                  placeholder="A"
-                                  value={stat.assists}
-                                  onChange={(e) => {
-                                    const newMaps = [...editingMaps];
-                                    if (
-                                      statsIndex !== undefined &&
-                                      statsIndex !== -1
-                                    ) {
-                                      newMaps[mapIndex].player_stats![
-                                        statsIndex
-                                      ].assists = parseInt(e.target.value) || 0;
-                                      onMapsChange(newMaps);
-                                    }
-                                  }}
-                                  min="0"
-                                  className="w-full px-2 py-1 bg-gray-700 border border-gray-600 rounded text-white text-xs focus:outline-none focus:border-blue-500"
-                                  title="Assists"
-                                />
-                              </div>
-                            </div>
-                          );
-                        })}
-                    </div>
+                      }{" "}
+                      Score
+                    </label>
+                    <input
+                      type="number"
+                      value={map.team1_score}
+                      onChange={(e) => {
+                        const newMaps = [...editingMaps];
+                        newMaps[index].team1_score =
+                          parseInt(e.target.value) || 0;
+                        onMapsChange(newMaps);
+                      }}
+                      min="0"
+                      className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-blue-500"
+                    />
                   </div>
-
-                  {/* Team 2 Players */}
                   <div>
-                    <h6 className="text-sm font-semibold text-gray-300 mb-2">
+                    <label className="block text-gray-400 text-sm mb-2">
                       {
                         teams.find((t) => t.id === parseInt(formData.team2_id))
                           ?.logo
@@ -345,112 +204,269 @@ export default function EditMatchForm({
                       {
                         teams.find((t) => t.id === parseInt(formData.team2_id))
                           ?.name
-                      }
-                    </h6>
-                    <div className="space-y-2">
-                      {map.player_stats
-                        ?.filter(
-                          (stat) => stat.team_id === parseInt(formData.team2_id)
-                        )
-                        .map((stat, statIndex) => {
-                          const mapIndex = editingMaps.findIndex(
-                            (m) => m.id === map.id
-                          );
-                          const statsIndex = editingMaps[
-                            mapIndex
-                          ]?.player_stats?.findIndex(
-                            (s) =>
-                              s.player_id === stat.player_id &&
-                              s.team_id === stat.team_id
-                          );
-                          return (
-                            <div
-                              key={`${stat.player_id}-${statIndex}`}
-                              className="bg-gray-800/50 p-2 rounded"
-                            >
-                              <div className="text-xs text-gray-400 mb-1">
-                                {stat.player?.name ||
-                                  `Player ${stat.player_id}`}
-                              </div>
-                              <div className="grid grid-cols-3 gap-2 text-xs text-gray-500 mb-1">
-                                <div className="text-center">Kills</div>
-                                <div className="text-center">Deaths</div>
-                                <div className="text-center">Assists</div>
-                              </div>
-                              <div className="grid grid-cols-3 gap-2">
-                                <input
-                                  type="number"
-                                  placeholder="K"
-                                  value={stat.kills}
-                                  onChange={(e) => {
-                                    const newMaps = [...editingMaps];
-                                    if (
-                                      statsIndex !== undefined &&
-                                      statsIndex !== -1
-                                    ) {
-                                      newMaps[mapIndex].player_stats![
-                                        statsIndex
-                                      ].kills = parseInt(e.target.value) || 0;
-                                      onMapsChange(newMaps);
-                                    }
-                                  }}
-                                  min="0"
-                                  className="w-full px-2 py-1 bg-gray-700 border border-gray-600 rounded text-white text-xs focus:outline-none focus:border-blue-500"
-                                  title="Kills"
-                                />
-                                <input
-                                  type="number"
-                                  placeholder="D"
-                                  value={stat.deaths}
-                                  onChange={(e) => {
-                                    const newMaps = [...editingMaps];
-                                    if (
-                                      statsIndex !== undefined &&
-                                      statsIndex !== -1
-                                    ) {
-                                      newMaps[mapIndex].player_stats![
-                                        statsIndex
-                                      ].deaths = parseInt(e.target.value) || 0;
-                                      onMapsChange(newMaps);
-                                    }
-                                  }}
-                                  min="0"
-                                  className="w-full px-2 py-1 bg-gray-700 border border-gray-600 rounded text-white text-xs focus:outline-none focus:border-blue-500"
-                                  title="Deaths"
-                                />
-                                <input
-                                  type="number"
-                                  placeholder="A"
-                                  value={stat.assists}
-                                  onChange={(e) => {
-                                    const newMaps = [...editingMaps];
-                                    if (
-                                      statsIndex !== undefined &&
-                                      statsIndex !== -1
-                                    ) {
-                                      newMaps[mapIndex].player_stats![
-                                        statsIndex
-                                      ].assists = parseInt(e.target.value) || 0;
-                                      onMapsChange(newMaps);
-                                    }
-                                  }}
-                                  min="0"
-                                  className="w-full px-2 py-1 bg-gray-700 border border-gray-600 rounded text-white text-xs focus:outline-none focus:border-blue-500"
-                                  title="Assists"
-                                />
-                              </div>
-                            </div>
-                          );
-                        })}
-                    </div>
+                      }{" "}
+                      Score
+                    </label>
+                    <input
+                      type="number"
+                      value={map.team2_score}
+                      onChange={(e) => {
+                        const newMaps = [...editingMaps];
+                        newMaps[index].team2_score =
+                          parseInt(e.target.value) || 0;
+                        onMapsChange(newMaps);
+                      }}
+                      min="0"
+                      className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-blue-500"
+                    />
                   </div>
                 </div>
-                <div className="text-xs text-gray-500 mt-2">
-                  K = Kills, D = Deaths, A = Assists
+
+                {/* Player Statistics */}
+                <div className="mt-4 pt-4 border-t border-gray-700">
+                  <h6 className="text-white font-semibold mb-3">
+                    Player Statistics
+                  </h6>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* Team 1 Players */}
+                    <div>
+                      <h6 className="text-sm font-semibold text-gray-300 mb-2">
+                        {
+                          teams.find(
+                            (t) => t.id === parseInt(formData.team1_id)
+                          )?.logo
+                        }{" "}
+                        {
+                          teams.find(
+                            (t) => t.id === parseInt(formData.team1_id)
+                          )?.name
+                        }
+                      </h6>
+                      <div className="space-y-2">
+                        {map.player_stats
+                          ?.filter(
+                            (stat) =>
+                              stat.team_id === parseInt(formData.team1_id)
+                          )
+                          ?.sort((a, b) => b.kills - a.kills)
+                          .map((stat, statIndex) => {
+                            const mapIndex = editingMaps.findIndex(
+                              (m) => m.id === map.id
+                            );
+                            const statsIndex = editingMaps[
+                              mapIndex
+                            ]?.player_stats?.findIndex(
+                              (s) =>
+                                s.player_id === stat.player_id &&
+                                s.team_id === stat.team_id
+                            );
+                            return (
+                              <div
+                                key={`${stat.player_id}-${statIndex}`}
+                                className="bg-gray-800/50 p-2 rounded"
+                              >
+                                <div className="text-xs text-gray-400 mb-1">
+                                  {stat.player?.name ||
+                                    `Player ${stat.player_id}`}
+                                </div>
+                                <div className="grid grid-cols-3 gap-2 text-xs text-gray-500 mb-1">
+                                  <div className="text-center">Kills</div>
+                                  <div className="text-center">Deaths</div>
+                                  <div className="text-center">Assists</div>
+                                </div>
+                                <div className="grid grid-cols-3 gap-2">
+                                  <input
+                                    type="number"
+                                    placeholder="K"
+                                    value={stat.kills}
+                                    onChange={(e) => {
+                                      const newMaps = [...editingMaps];
+                                      if (
+                                        statsIndex !== undefined &&
+                                        statsIndex !== -1
+                                      ) {
+                                        newMaps[mapIndex].player_stats![
+                                          statsIndex
+                                        ].kills = parseInt(e.target.value) || 0;
+                                        onMapsChange(newMaps);
+                                      }
+                                    }}
+                                    min="0"
+                                    className="w-full px-2 py-1 bg-gray-700 border border-gray-600 rounded text-white text-xs focus:outline-none focus:border-blue-500"
+                                    title="Kills"
+                                  />
+                                  <input
+                                    type="number"
+                                    placeholder="D"
+                                    value={stat.deaths}
+                                    onChange={(e) => {
+                                      const newMaps = [...editingMaps];
+                                      if (
+                                        statsIndex !== undefined &&
+                                        statsIndex !== -1
+                                      ) {
+                                        newMaps[mapIndex].player_stats![
+                                          statsIndex
+                                        ].deaths =
+                                          parseInt(e.target.value) || 0;
+                                        onMapsChange(newMaps);
+                                      }
+                                    }}
+                                    min="0"
+                                    className="w-full px-2 py-1 bg-gray-700 border border-gray-600 rounded text-white text-xs focus:outline-none focus:border-blue-500"
+                                    title="Deaths"
+                                  />
+                                  <input
+                                    type="number"
+                                    placeholder="A"
+                                    value={stat.assists}
+                                    onChange={(e) => {
+                                      const newMaps = [...editingMaps];
+                                      if (
+                                        statsIndex !== undefined &&
+                                        statsIndex !== -1
+                                      ) {
+                                        newMaps[mapIndex].player_stats![
+                                          statsIndex
+                                        ].assists =
+                                          parseInt(e.target.value) || 0;
+                                        onMapsChange(newMaps);
+                                      }
+                                    }}
+                                    min="0"
+                                    className="w-full px-2 py-1 bg-gray-700 border border-gray-600 rounded text-white text-xs focus:outline-none focus:border-blue-500"
+                                    title="Assists"
+                                  />
+                                </div>
+                              </div>
+                            );
+                          })}
+                      </div>
+                    </div>
+
+                    {/* Team 2 Players */}
+                    <div>
+                      <h6 className="text-sm font-semibold text-gray-300 mb-2">
+                        {
+                          teams.find(
+                            (t) => t.id === parseInt(formData.team2_id)
+                          )?.logo
+                        }{" "}
+                        {
+                          teams.find(
+                            (t) => t.id === parseInt(formData.team2_id)
+                          )?.name
+                        }
+                      </h6>
+                      <div className="space-y-2">
+                        {map.player_stats
+                          ?.filter(
+                            (stat) =>
+                              stat.team_id === parseInt(formData.team2_id)
+                          )
+                          ?.sort((a, b) => b.kills - a.kills)
+                          .map((stat, statIndex) => {
+                            const mapIndex = editingMaps.findIndex(
+                              (m) => m.id === map.id
+                            );
+                            const statsIndex = editingMaps[
+                              mapIndex
+                            ]?.player_stats?.findIndex(
+                              (s) =>
+                                s.player_id === stat.player_id &&
+                                s.team_id === stat.team_id
+                            );
+                            return (
+                              <div
+                                key={`${stat.player_id}-${statIndex}`}
+                                className="bg-gray-800/50 p-2 rounded"
+                              >
+                                <div className="text-xs text-gray-400 mb-1">
+                                  {stat.player?.name ||
+                                    `Player ${stat.player_id}`}
+                                </div>
+                                <div className="grid grid-cols-3 gap-2 text-xs text-gray-500 mb-1">
+                                  <div className="text-center">Kills</div>
+                                  <div className="text-center">Deaths</div>
+                                  <div className="text-center">Assists</div>
+                                </div>
+                                <div className="grid grid-cols-3 gap-2">
+                                  <input
+                                    type="number"
+                                    placeholder="K"
+                                    value={stat.kills}
+                                    onChange={(e) => {
+                                      const newMaps = [...editingMaps];
+                                      if (
+                                        statsIndex !== undefined &&
+                                        statsIndex !== -1
+                                      ) {
+                                        newMaps[mapIndex].player_stats![
+                                          statsIndex
+                                        ].kills = parseInt(e.target.value) || 0;
+                                        onMapsChange(newMaps);
+                                      }
+                                    }}
+                                    min="0"
+                                    className="w-full px-2 py-1 bg-gray-700 border border-gray-600 rounded text-white text-xs focus:outline-none focus:border-blue-500"
+                                    title="Kills"
+                                  />
+                                  <input
+                                    type="number"
+                                    placeholder="D"
+                                    value={stat.deaths}
+                                    onChange={(e) => {
+                                      const newMaps = [...editingMaps];
+                                      if (
+                                        statsIndex !== undefined &&
+                                        statsIndex !== -1
+                                      ) {
+                                        newMaps[mapIndex].player_stats![
+                                          statsIndex
+                                        ].deaths =
+                                          parseInt(e.target.value) || 0;
+                                        onMapsChange(newMaps);
+                                      }
+                                    }}
+                                    min="0"
+                                    className="w-full px-2 py-1 bg-gray-700 border border-gray-600 rounded text-white text-xs focus:outline-none focus:border-blue-500"
+                                    title="Deaths"
+                                  />
+                                  <input
+                                    type="number"
+                                    placeholder="A"
+                                    value={stat.assists}
+                                    onChange={(e) => {
+                                      const newMaps = [...editingMaps];
+                                      if (
+                                        statsIndex !== undefined &&
+                                        statsIndex !== -1
+                                      ) {
+                                        newMaps[mapIndex].player_stats![
+                                          statsIndex
+                                        ].assists =
+                                          parseInt(e.target.value) || 0;
+                                        onMapsChange(newMaps);
+                                      }
+                                    }}
+                                    min="0"
+                                    className="w-full px-2 py-1 bg-gray-700 border border-gray-600 rounded text-white text-xs focus:outline-none focus:border-blue-500"
+                                    title="Assists"
+                                  />
+                                </div>
+                              </div>
+                            );
+                          })}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="text-xs text-gray-500 mt-2">
+                    K = Kills, D = Deaths, A = Assists
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
           <button
             onClick={() => onAddMap()}
             className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-colors"

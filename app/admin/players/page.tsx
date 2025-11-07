@@ -485,7 +485,7 @@ export default function AdminPlayersPage() {
         {/* Add/Edit Player Modal */}
         {showAddForm && (
           <div
-            className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+            className="sticky w-screen h-screen top-0 inset-0 flex items-center justify-center z-50 p-4"
             onClick={cancelEdit}
           >
             <div

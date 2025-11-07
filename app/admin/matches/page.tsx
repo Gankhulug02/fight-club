@@ -59,7 +59,7 @@ export default function AdminMatchesPage() {
 
   const getTeamPlayers = useCallback(
     (teamId?: number) =>
-      teamId ? players.filter((p) => p.team_id === teamId).slice(0, 5) : [],
+      teamId ? players.filter((p) => p.team_id === teamId).slice(0, 10) : [],
     [players]
   );
 
@@ -130,6 +130,8 @@ export default function AdminMatchesPage() {
             .filter((s) => s.map_id === map.id)
             .map((s) => ({ ...s, player: playersById.get(s.player_id) })),
         }));
+
+        console.log("mapsWithStats", mapsWithStats);
 
         const matchesWithTeams: MatchWithTeams[] = (matchesData ?? []).map(
           (m) => ({
@@ -318,7 +320,19 @@ export default function AdminMatchesPage() {
 
         // Upsert player stats for existing map
         if (map.player_stats?.length) {
-          for (const stat of map.player_stats) {
+          // Filter out players with 0/0/0 stats if team has more than 5 players
+          const filteredStats = map.player_stats.filter((stat) => {
+            const teamPlayerCount = getTeamPlayers(stat.team_id).length;
+            const hasZeroStats =
+              stat.kills === 0 && stat.assists === 0 && stat.deaths === 0;
+            // Skip 0/0/0 stats if team has more than 5 players
+            if (teamPlayerCount > 5 && hasZeroStats) {
+              return false;
+            }
+            return true;
+          });
+
+          for (const stat of filteredStats) {
             if (stat.id) {
               const { error: statErr } = await supabase
                 .from("map_player_stats")
@@ -329,19 +343,20 @@ export default function AdminMatchesPage() {
                 })
                 .eq("id", stat.id);
               if (statErr) throw statErr;
-            } else {
-              const { error: statErr } = await supabase
-                .from("map_player_stats")
-                .insert({
-                  map_id: map.id,
-                  player_id: stat.player_id,
-                  team_id: stat.team_id,
-                  kills: stat.kills,
-                  assists: stat.assists,
-                  deaths: stat.deaths,
-                });
-              if (statErr) throw statErr;
             }
+            // else {
+            //   const { error: statErr } = await supabase
+            //     .from("map_player_stats")
+            //     .insert({
+            //       map_id: map.id,
+            //       player_id: stat.player_id,
+            //       team_id: stat.team_id,
+            //       kills: stat.kills,
+            //       assists: stat.assists,
+            //       deaths: stat.deaths,
+            //     });
+            //   if (statErr) throw statErr;
+            // }
           }
         }
       }
@@ -382,18 +397,32 @@ export default function AdminMatchesPage() {
           if (!created) continue;
 
           if (draft.player_stats?.length) {
-            const statsRows = draft.player_stats.map((s) => ({
-              map_id: created.id,
-              player_id: s.player_id,
-              team_id: s.team_id,
-              kills: s.kills,
-              assists: s.assists,
-              deaths: s.deaths,
-            }));
-            const { error: statsErr } = await supabase
-              .from("map_player_stats")
-              .insert(statsRows);
-            if (statsErr) throw statsErr;
+            // Filter out players with 0/0/0 stats if team has more than 5 players
+            const filteredStats = draft.player_stats.filter((stat) => {
+              const teamPlayerCount = getTeamPlayers(stat.team_id).length;
+              const hasZeroStats =
+                stat.kills === 0 && stat.assists === 0 && stat.deaths === 0;
+              // Skip 0/0/0 stats if team has more than 5 players
+              if (teamPlayerCount > 5 && hasZeroStats) {
+                return false;
+              }
+              return true;
+            });
+
+            if (filteredStats.length > 0) {
+              const statsRows = filteredStats.map((s) => ({
+                map_id: created.id,
+                player_id: s.player_id,
+                team_id: s.team_id,
+                kills: s.kills,
+                assists: s.assists,
+                deaths: s.deaths,
+              }));
+              const { error: statsErr } = await supabase
+                .from("map_player_stats")
+                .insert(statsRows);
+              if (statsErr) throw statsErr;
+            }
           }
         }
       }
