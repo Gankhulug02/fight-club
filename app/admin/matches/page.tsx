@@ -59,7 +59,7 @@ export default function AdminMatchesPage() {
 
   const getTeamPlayers = useCallback(
     (teamId?: number) =>
-      teamId ? players.filter((p) => p.team_id === teamId).slice(0, 10) : [],
+      teamId ? players.filter((p) => p.team_id === teamId) : [],
     [players]
   );
 

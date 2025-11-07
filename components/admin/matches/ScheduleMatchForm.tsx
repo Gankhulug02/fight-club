@@ -108,9 +108,9 @@ export default function ScheduleMatchForm({
               }
               className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-blue-500"
             >
-              <option value={2}>2 Maps (Best of 2) - Default</option>
+              {/* <option value={2}>2 Maps (Best of 2) - Default</option> */}
               <option value={3}>3 Maps (Best of 3)</option>
-              <option value={4}>4 Maps (Best of 4)</option>
+              {/* <option value={4}>4 Maps (Best of 4)</option> */}
               <option value={5}>5 Maps (Best of 5)</option>
             </select>
           </div>
@@ -144,11 +144,17 @@ export default function ScheduleMatchForm({
                 </strong>{" "}
                 between{" "}
                 <strong>
-                  {teams.find((t) => t.id === parseInt(formData.team1_id))?.name}
+                  {
+                    teams.find((t) => t.id === parseInt(formData.team1_id))
+                      ?.name
+                  }
                 </strong>{" "}
                 and{" "}
                 <strong>
-                  {teams.find((t) => t.id === parseInt(formData.team2_id))?.name}
+                  {
+                    teams.find((t) => t.id === parseInt(formData.team2_id))
+                      ?.name
+                  }
                 </strong>
               </span>
             </div>
@@ -193,4 +199,3 @@ export default function ScheduleMatchForm({
     </div>
   );
 }
-

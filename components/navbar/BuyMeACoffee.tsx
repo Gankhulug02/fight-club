@@ -75,7 +75,7 @@ export default function BuyMeACoffee() {
                   </span>
                   <button
                     onClick={() => handleCopy("88223402", "socialpay")}
-                    className="text-yellow-500 hover:text-yellow-400 text-xs transition-colors"
+                    className="text-yellow-500 hover:text-yellow-400 text-xs transition-colors cursor-pointer"
                   >
                     {copiedField === "socialpay" ? "Copied!" : "Copy"}
                   </button>
@@ -91,7 +91,7 @@ export default function BuyMeACoffee() {
                   </span>
                   <button
                     onClick={() => handleCopy("2205147374", "golomt")}
-                    className="text-yellow-500 hover:text-yellow-400 text-xs transition-colors"
+                    className="text-yellow-500 hover:text-yellow-400 text-xs transition-colors cursor-pointer"
                   >
                     {copiedField === "golomt" ? "Copied!" : "Copy"}
                   </button>
