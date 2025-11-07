@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 export default function Footer() {
   return (
     <footer className="bg-gray-950 border-t border-gray-800">
@@ -25,40 +27,23 @@ export default function Footer() {
             <h4 className="text-white font-semibold mb-4 text-sm uppercase tracking-wider">
               Quick Links
             </h4>
-            <ul className="space-y-2">
-              <li>
-                <a
-                  href="#"
-                  className="text-gray-400 hover:text-white text-sm transition-colors"
-                >
-                  Leaderboard
-                </a>
-              </li>
-              <li>
-                <a
-                  href="#"
-                  className="text-gray-400 hover:text-white text-sm transition-colors"
-                >
-                  Teams
-                </a>
-              </li>
-              <li>
-                <a
-                  href="#"
-                  className="text-gray-400 hover:text-white text-sm transition-colors"
-                >
-                  Match Schedule
-                </a>
-              </li>
-              <li>
-                <a
-                  href="#"
-                  className="text-gray-400 hover:text-white text-sm transition-colors"
-                >
-                  Rules & Format
-                </a>
-              </li>
-            </ul>
+            {[
+              { href: "/", label: "Leaderboard" },
+              { href: "/", label: "Teams" },
+              { href: "/matches", label: "Match Schedule" },
+              { href: "/rules", label: "Rules & Format" },
+            ].map((link, index) => (
+              <ul className="space-y-2" key={link.label + index}>
+                <li key={link.label}>
+                  <Link
+                    href={link.href}
+                    className="text-gray-400 hover:text-white text-sm transition-colors"
+                  >
+                    {link.label}
+                  </Link>
+                </li>
+              </ul>
+            ))}
           </div>
 
           {/* Contact & Social */}
@@ -67,42 +52,29 @@ export default function Footer() {
               Connect
             </h4>
             <ul className="space-y-2">
-              <li>
-                <a
-                  href="#"
-                  className="text-gray-400 hover:text-white text-sm transition-colors flex items-center space-x-2"
-                >
-                  <span>📺</span>
-                  <span>Twitch</span>
-                </a>
-              </li>
-              <li>
-                <a
-                  href="#"
-                  className="text-gray-400 hover:text-white text-sm transition-colors flex items-center space-x-2"
-                >
-                  <span>🐦</span>
-                  <span>Twitter</span>
-                </a>
-              </li>
-              <li>
-                <a
-                  href="#"
-                  className="text-gray-400 hover:text-white text-sm transition-colors flex items-center space-x-2"
-                >
-                  <span>💬</span>
-                  <span>Discord</span>
-                </a>
-              </li>
-              <li>
-                <a
-                  href="#"
-                  className="text-gray-400 hover:text-white text-sm transition-colors flex items-center space-x-2"
-                >
-                  <span>📧</span>
-                  <span>Contact</span>
-                </a>
-              </li>
+              {[
+                {
+                  href: "https://discord.gg/GTkjP5UR",
+                  icon: "💬",
+                  label: "Discord",
+                },
+                {
+                  href: "https://www.youtube.com/@ANDDOTA2",
+                  icon: "🎥",
+                  label: "Youtube",
+                },
+              ].map((social) => (
+                <li key={social.label}>
+                  <Link
+                    href={social.href}
+                    target="_blank"
+                    className="text-gray-400 hover:text-white text-sm transition-colors flex items-center space-x-2"
+                  >
+                    <span>{social.icon}</span>
+                    <span>{social.label}</span>
+                  </Link>
+                </li>
+              ))}
             </ul>
           </div>
         </div>
@@ -112,32 +84,21 @@ export default function Footer() {
           <div className="flex flex-col md:flex-row justify-between items-center space-y-4 md:space-y-0">
             <p className="text-gray-500 text-sm">
               © 2025 Fight Club Tournament. All rights reserved.
+              <span className="ml-2">
+                | Developed by{" "}
+                <Link
+                  href="https://www.instagram.com/etoyaa02/"
+                  className="text-gray-400 hover:text-white underline transition-colors"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  Etoyaa
+                </Link>
+              </span>
             </p>
-            <div className="flex space-x-6 text-sm">
-              <a
-                href="#"
-                className="text-gray-500 hover:text-gray-400 transition-colors"
-              >
-                Privacy Policy
-              </a>
-              <a
-                href="#"
-                className="text-gray-500 hover:text-gray-400 transition-colors"
-              >
-                Terms of Service
-              </a>
-              <a
-                href="#"
-                className="text-gray-500 hover:text-gray-400 transition-colors"
-              >
-                Support
-              </a>
-            </div>
           </div>
         </div>
       </div>
     </footer>
   );
 }
-
-
