@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import StatsOverview from "@/components/admin/matches/StatsOverview";
@@ -18,6 +18,8 @@ import {
   BulkMatchFormData,
 } from "@/components/admin/matches/types";
 
+type MapDraft = Omit<MatchMap, "id"> & { id?: number }; // id is optional for drafts
+
 export default function AdminMatchesPage() {
   const [matches, setMatches] = useState<MatchWithTeams[]>([]);
   const [teams, setTeams] = useState<Team[]>([]);
@@ -25,10 +27,13 @@ export default function AdminMatchesPage() {
   const [loading, setLoading] = useState(true);
   const [isUpdating, setIsUpdating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
+
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingMatch, setEditingMatch] = useState<MatchWithTeams | null>(null);
+
   const [formData, setFormData] = useState<MatchFormData>({
     team1_id: "",
     team2_id: "",
@@ -37,6 +42,7 @@ export default function AdminMatchesPage() {
     match_date: "",
     status: "scheduled",
   });
+
   const [bulkFormData, setBulkFormData] = useState<BulkMatchFormData>({
     team1_id: "",
     team2_id: "",
@@ -45,118 +51,180 @@ export default function AdminMatchesPage() {
     number_of_matches: 1,
     maps_per_match: 2,
   });
-  const [editingMaps, setEditingMaps] = useState<MatchMap[]>([]);
 
-  // Fetch data on mount
+  const [editingMaps, setEditingMaps] = useState<MapDraft[]>([]);
+
+  // ---------- Utilities ----------
+  const parseId = (v: string) => (v ? parseInt(v, 10) : undefined);
+
+  const getTeamPlayers = useCallback(
+    (teamId?: number) =>
+      teamId ? players.filter((p) => p.team_id === teamId).slice(0, 5) : [],
+    [players]
+  );
+
+  const ensurePlayerStatsForTeams = useCallback(
+    (map: MapDraft, t1Id?: number, t2Id?: number): MapPlayerStats[] => {
+      const existing = map.player_stats ?? [];
+      const t1Players = getTeamPlayers(t1Id);
+      const t2Players = getTeamPlayers(t2Id);
+
+      const upsertFor = (pl: Player, teamId: number) => {
+        const found = existing.find((s) => s.player_id === pl.id);
+        return (
+          found ?? {
+            // map_id will be filled on save for new maps
+            map_id: map.id!,
+            player_id: pl.id,
+            team_id: teamId,
+            kills: 0,
+            assists: 0,
+            deaths: 0,
+            player: pl,
+          }
+        );
+      };
+
+      return [
+        ...t1Players.map((p) => upsertFor(p, t1Id!)),
+        ...t2Players.map((p) => upsertFor(p, t2Id!)),
+      ];
+    },
+    [getTeamPlayers]
+  );
+
+  // ---------- Data load ----------
   useEffect(() => {
-    fetchData();
+    (async () => {
+      try {
+        setLoading(true);
+        setError(null);
+
+        const [
+          { data: teamsData, error: teamsError },
+          { data: playersData, error: playersError },
+          { data: matchesData, error: matchesError },
+          { data: mapsData, error: mapsError },
+          { data: playerStatsData, error: playerStatsError },
+        ] = await Promise.all([
+          supabase.from("teams").select("*").order("name"),
+          supabase.from("players").select("*").order("name"),
+          supabase
+            .from("matches")
+            .select("*")
+            .order("match_date", { ascending: false }),
+          supabase.from("match_maps").select("*").order("map_number"),
+          supabase.from("map_player_stats").select("*"),
+        ]);
+
+        if (teamsError) throw teamsError;
+        if (playersError) throw playersError;
+        if (matchesError) throw matchesError;
+        if (mapsError) throw mapsError;
+        if (playerStatsError) throw playerStatsError;
+
+        const playersById = new Map((playersData ?? []).map((p) => [p.id, p]));
+        const mapsWithStats = (mapsData ?? []).map((map) => ({
+          ...map,
+          player_stats: (playerStatsData ?? [])
+            .filter((s) => s.map_id === map.id)
+            .map((s) => ({ ...s, player: playersById.get(s.player_id) })),
+        }));
+
+        const matchesWithTeams: MatchWithTeams[] = (matchesData ?? []).map(
+          (m) => ({
+            ...m,
+            team1: (teamsData ?? []).find((t) => t.id === m.team1_id),
+            team2: (teamsData ?? []).find((t) => t.id === m.team2_id),
+            maps: mapsWithStats.filter((map) => map.match_id === m.id),
+          })
+        );
+
+        setTeams(teamsData ?? []);
+        setPlayers(playersData ?? []);
+        setMatches(matchesWithTeams);
+      } catch (e) {
+        console.error(e);
+        setError("Failed to load data. Please try again.");
+      } finally {
+        setLoading(false);
+      }
+    })();
   }, []);
 
-  const fetchData = async () => {
+  const refetch = useCallback(async () => {
+    // light wrapper so we can reuse
+    setLoading(true);
     try {
-      setLoading(true);
+      // you could DRY by calling the effect’s body, but keeping separate is clearer
+      const [
+        { data: teamsData },
+        { data: playersData },
+        { data: matchesData },
+        { data: mapsData },
+        { data: playerStatsData },
+      ] = await Promise.all([
+        supabase.from("teams").select("*").order("name"),
+        supabase.from("players").select("*").order("name"),
+        supabase
+          .from("matches")
+          .select("*")
+          .order("match_date", { ascending: false }),
+        supabase.from("match_maps").select("*").order("map_number"),
+        supabase.from("map_player_stats").select("*"),
+      ]);
 
-      // Fetch teams
-      const { data: teamsData, error: teamsError } = await supabase
-        .from("teams")
-        .select("*")
-        .order("name");
-
-      if (teamsError) throw teamsError;
-      setTeams(teamsData || []);
-
-      // Fetch players
-      const { data: playersData, error: playersError } = await supabase
-        .from("players")
-        .select("*")
-        .order("name");
-
-      if (playersError) throw playersError;
-      setPlayers(playersData || []);
-
-      // Fetch matches
-      const { data: matchesData, error: matchesError } = await supabase
-        .from("matches")
-        .select("*")
-        .order("match_date", { ascending: false });
-
-      if (matchesError) throw matchesError;
-
-      // Fetch all match maps
-      const { data: mapsData, error: mapsError } = await supabase
-        .from("match_maps")
-        .select("*")
-        .order("map_number");
-
-      if (mapsError) throw mapsError;
-
-      // Fetch all player stats
-      const { data: playerStatsData, error: playerStatsError } = await supabase
-        .from("map_player_stats")
-        .select("*");
-
-      if (playerStatsError) throw playerStatsError;
-
-      // Combine maps with player stats
-      const mapsWithStats = (mapsData || []).map((map) => ({
+      const playersById = new Map((playersData ?? []).map((p) => [p.id, p]));
+      const mapsWithStats = (mapsData ?? []).map((map) => ({
         ...map,
-        player_stats: (playerStatsData || [])
-          .filter((stat) => stat.map_id === map.id)
-          .map((stat) => ({
-            ...stat,
-            player: playersData?.find((p) => p.id === stat.player_id),
-          })),
+        player_stats: (playerStatsData ?? [])
+          .filter((s) => s.map_id === map.id)
+          .map((s) => ({ ...s, player: playersById.get(s.player_id) })),
       }));
 
-      // Combine matches with team data and maps
-      const matchesWithTeams = (matchesData || []).map((match) => ({
-        ...match,
-        team1: teamsData?.find((t) => t.id === match.team1_id),
-        team2: teamsData?.find((t) => t.id === match.team2_id),
-        maps: mapsWithStats.filter((map) => map.match_id === match.id),
-      }));
+      const matchesWithTeams: MatchWithTeams[] = (matchesData ?? []).map(
+        (m) => ({
+          ...m,
+          team1: (teamsData ?? []).find((t) => t.id === m.team1_id),
+          team2: (teamsData ?? []).find((t) => t.id === m.team2_id),
+          maps: mapsWithStats.filter((map) => map.match_id === m.id),
+        })
+      );
 
+      setTeams(teamsData ?? []);
+      setPlayers(playersData ?? []);
       setMatches(matchesWithTeams);
       setError(null);
-    } catch (err) {
-      console.error("Error fetching data:", err);
-      setError("Failed to load data. Please try again.");
+    } catch (e) {
+      console.error(e);
+      setError("Failed to refresh data.");
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  // Add multiple matches (bulk) - same teams, multiple matches
+  // ---------- Bulk add ----------
   const handleAddBulkMatches = async () => {
-    // Validate teams
-    if (!bulkFormData.team1_id || !bulkFormData.team2_id) {
-      alert("Please select both teams");
-      return;
-    }
+    const t1 = parseId(bulkFormData.team1_id);
+    const t2 = parseId(bulkFormData.team2_id);
 
-    if (bulkFormData.team1_id === bulkFormData.team2_id) {
-      alert("Teams must be different");
-      return;
-    }
-
-    if (!bulkFormData.match_date) {
-      alert("Please select a match date for all matches");
-      return;
-    }
+    if (!t1 || !t2) return alert("Please select both teams");
+    if (t1 === t2) return alert("Teams must be different");
+    if (!bulkFormData.match_date) return alert("Please select a match date");
 
     try {
-      // Create multiple matches between the same two teams
-      const matchesToInsert = Array(bulkFormData.number_of_matches)
-        .fill(null)
-        .map(() => ({
-          team1_id: parseInt(bulkFormData.team1_id),
-          team2_id: parseInt(bulkFormData.team2_id),
+      const matchesToInsert = Array.from(
+        { length: bulkFormData.number_of_matches },
+        () => ({
+          team1_id: t1,
+          team2_id: t2,
           team1_score: 0,
           team2_score: 0,
           match_date: bulkFormData.match_date,
           num_maps: bulkFormData.maps_per_match,
           status: "completed",
-        }));
+        })
+      );
 
       const { data: createdMatches, error: matchError } = await supabase
         .from("matches")
@@ -165,27 +233,22 @@ export default function AdminMatchesPage() {
 
       if (matchError) throw matchError;
 
-      // Create the specified number of maps for each match
-      const mapsToInsert = (createdMatches || []).flatMap((match) =>
-        Array(bulkFormData.maps_per_match)
-          .fill(null)
-          .map((_, index) => ({
-            match_id: match.id,
-            map_number: index + 1,
-            team1_score: 0,
-            team2_score: 0,
-            winner_team_id: null,
-            status: "completed",
-          }))
+      const mapsToInsert = (createdMatches ?? []).flatMap((m) =>
+        Array.from({ length: bulkFormData.maps_per_match }, (_, i) => ({
+          match_id: m.id,
+          map_number: i + 1,
+          team1_score: 0,
+          team2_score: 0,
+          winner_team_id: null,
+          status: "completed",
+        }))
       );
 
       const { error: mapsError } = await supabase
         .from("match_maps")
         .insert(mapsToInsert);
-
       if (mapsError) throw mapsError;
 
-      // Reset form
       setBulkFormData({
         team1_id: "",
         team2_id: "",
@@ -195,42 +258,49 @@ export default function AdminMatchesPage() {
         maps_per_match: 3,
       });
       setShowAddForm(false);
-      await fetchData();
+      await refetch();
       alert(
         `${matchesToInsert.length} matches scheduled successfully (${mapsToInsert.length} maps total)!`
       );
-    } catch (err) {
-      console.error("Error adding matches:", err);
+    } catch (e) {
+      console.error(e);
       alert("Failed to add matches. Please try again.");
     }
   };
 
-  // Update match
+  // ---------- Update (now handles new maps & stats cleanly) ----------
   const handleUpdateMatch = async () => {
     if (!editingMatch) return;
 
+    const t1 = parseId(formData.team1_id)!;
+    const t2 = parseId(formData.team2_id)!;
+
     setIsUpdating(true);
     try {
+      // 1) Update match shell
       const { error: matchError } = await supabase
         .from("matches")
         .update({
-          team1_id: parseInt(formData.team1_id),
-          team2_id: parseInt(formData.team2_id),
+          team1_id: t1,
+          team2_id: t2,
           match_date: formData.match_date,
           num_maps: editingMaps.length,
           status: formData.status,
         })
         .eq("id", editingMatch.id);
-
       if (matchError) throw matchError;
 
-      // Update each map's scores and determine winner
-      for (const map of editingMaps) {
+      // Split maps into existing vs new
+      const existingMaps = editingMaps.filter((m) => !!m.id) as MatchMap[];
+      const newMaps = editingMaps.filter((m) => !m.id);
+
+      // 2) Update existing maps
+      for (const map of existingMaps) {
         const winnerId =
           map.team1_score > map.team2_score
-            ? parseInt(formData.team1_id)
+            ? t1
             : map.team2_score > map.team1_score
-            ? parseInt(formData.team2_id)
+            ? t2
             : null;
 
         const { error: mapError } = await supabase
@@ -241,45 +311,94 @@ export default function AdminMatchesPage() {
             winner_team_id: winnerId,
             map_name: map.map_name || null,
             status: formData.status,
+            map_number: map.map_number,
           })
           .eq("id", map.id);
-
         if (mapError) throw mapError;
 
-        // Update or insert player stats for this map
-        if (map.player_stats && map.player_stats.length > 0) {
-          for (const playerStat of map.player_stats) {
-            if (playerStat.id) {
-              // Update existing stat
-              const { error: statError } = await supabase
+        // Upsert player stats for existing map
+        if (map.player_stats?.length) {
+          for (const stat of map.player_stats) {
+            if (stat.id) {
+              const { error: statErr } = await supabase
                 .from("map_player_stats")
                 .update({
-                  kills: playerStat.kills,
-                  assists: playerStat.assists,
-                  deaths: playerStat.deaths,
+                  kills: stat.kills,
+                  assists: stat.assists,
+                  deaths: stat.deaths,
                 })
-                .eq("id", playerStat.id);
-
-              if (statError) throw statError;
+                .eq("id", stat.id);
+              if (statErr) throw statErr;
             } else {
-              // Insert new stat
-              const { error: statError } = await supabase
+              const { error: statErr } = await supabase
                 .from("map_player_stats")
                 .insert({
                   map_id: map.id,
-                  player_id: playerStat.player_id,
-                  team_id: playerStat.team_id,
-                  kills: playerStat.kills,
-                  assists: playerStat.assists,
-                  deaths: playerStat.deaths,
+                  player_id: stat.player_id,
+                  team_id: stat.team_id,
+                  kills: stat.kills,
+                  assists: stat.assists,
+                  deaths: stat.deaths,
                 });
-
-              if (statError) throw statError;
+              if (statErr) throw statErr;
             }
           }
         }
       }
 
+      // 3) Insert new maps, then insert their stats referring to returned map IDs
+      if (newMaps.length) {
+        // prepare payloads without id/map_id
+        const insertPayload = newMaps.map((m, idx) => {
+          const map_number = m.map_number ?? existingMaps.length + idx + 1;
+          const winner_team_id =
+            m.team1_score > m.team2_score
+              ? t1
+              : m.team2_score > m.team1_score
+              ? t2
+              : null;
+          return {
+            match_id: editingMatch.id,
+            map_number,
+            map_name: m.map_name || null,
+            team1_score: m.team1_score,
+            team2_score: m.team2_score,
+            winner_team_id,
+            status: formData.status,
+          };
+        });
+
+        const { data: insertedMaps, error: insertErr } = await supabase
+          .from("match_maps")
+          .insert(insertPayload)
+          .select();
+
+        if (insertErr) throw insertErr;
+
+        // Insert stats for each newly created map
+        for (let i = 0; i < newMaps.length; i++) {
+          const draft = newMaps[i];
+          const created = insertedMaps?.[i];
+          if (!created) continue;
+
+          if (draft.player_stats?.length) {
+            const statsRows = draft.player_stats.map((s) => ({
+              map_id: created.id,
+              player_id: s.player_id,
+              team_id: s.team_id,
+              kills: s.kills,
+              assists: s.assists,
+              deaths: s.deaths,
+            }));
+            const { error: statsErr } = await supabase
+              .from("map_player_stats")
+              .insert(statsRows);
+            if (statsErr) throw statsErr;
+          }
+        }
+      }
+
+      // 4) Reset UI
       setEditingMatch(null);
       setEditingMaps([]);
       setFormData({
@@ -291,106 +410,91 @@ export default function AdminMatchesPage() {
         status: "completed",
       });
       setShowAddForm(false);
-      await fetchData();
+
+      await refetch();
       alert("Match, maps, and player stats updated successfully!");
-    } catch (err) {
-      console.error("Error updating match:", err);
+    } catch (e) {
+      console.error(e);
       alert("Failed to update match. Please try again.");
     } finally {
       setIsUpdating(false);
     }
   };
 
-  // Delete match
+  // ---------- Delete match ----------
   const handleDeleteMatch = async (matchId: number) => {
-    if (!confirm("Are you sure you want to delete this match?")) {
-      return;
-    }
+    if (!confirm("Are you sure you want to delete this match?")) return;
 
     try {
       const { error } = await supabase
         .from("matches")
         .delete()
         .eq("id", matchId);
-
       if (error) throw error;
-
-      await fetchData();
+      await refetch();
       alert("Match deleted successfully!");
-    } catch (err) {
-      console.error("Error deleting match:", err);
+    } catch (e) {
+      console.error(e);
       alert("Failed to delete match. Please try again.");
     }
   };
 
-  // Start editing
+  // ---------- FIXED: Add map to match (no fake IDs, player stats ready) ----------
+  const handleAddMapToMatch = () => {
+    const t1 = parseId(formData.team1_id);
+    const t2 = parseId(formData.team2_id);
+    if (!t1 || !t2)
+      return alert("Please select both teams before adding maps.");
+
+    const nextMapNumber = (editingMaps?.length ?? 0) + 1;
+
+    // Build a draft map without id (DB will assign on save)
+    const draft: MapDraft = {
+      match_id: editingMatch?.id ?? 0, // will be used on insert
+      map_number: nextMapNumber,
+      map_name: "",
+      team1_score: 0,
+      team2_score: 0,
+      winner_team_id: null,
+      status: "completed",
+      // player_stats will be populated below; omit map_id until insert
+      player_stats: [],
+    };
+
+    // Ensure stats exist for top-5 players of each team (kills/assists/deaths = 0)
+    const stats = ensurePlayerStatsForTeams(draft, t1, t2).map((s) => ({
+      ...s,
+      map_id: undefined as unknown as number, // filled after insert in handleUpdateMatch
+    }));
+
+    setEditingMaps((cur) => [...cur, { ...draft, player_stats: stats }]);
+  };
+
+  // ---------- Edit start ----------
   const startEditMatch = (match: MatchWithTeams) => {
     setEditingMatch(match);
     setFormData({
-      team1_id: match.team1_id.toString(),
-      team2_id: match.team2_id.toString(),
-      team1_score: match.team1_score.toString(),
-      team2_score: match.team2_score.toString(),
+      team1_id: String(match.team1_id),
+      team2_id: String(match.team2_id),
+      team1_score: String(match.team1_score),
+      team2_score: String(match.team2_score),
       match_date: match.match_date,
       status: match.status,
     });
 
-    // Load map data for editing and initialize player stats if needed
-    const mapsWithStats = (match.maps || []).map((map) => {
-      // Get players for both teams
-      const team1Players = players
-        .filter((p) => p.team_id === match.team1_id)
-        .slice(0, 5);
-      const team2Players = players
-        .filter((p) => p.team_id === match.team2_id)
-        .slice(0, 5);
-
-      // Initialize player stats if they don't exist
-      const existingStats = map.player_stats || [];
-      const allPlayerStats: MapPlayerStats[] = [];
-
-      // Add team 1 players
-      team1Players.forEach((player) => {
-        const existing = existingStats.find((s) => s.player_id === player.id);
-        allPlayerStats.push(
-          existing || {
-            map_id: map.id,
-            player_id: player.id,
-            team_id: match.team1_id,
-            kills: 0,
-            assists: 0,
-            deaths: 0,
-            player,
-          }
-        );
-      });
-
-      // Add team 2 players
-      team2Players.forEach((player) => {
-        const existing = existingStats.find((s) => s.player_id === player.id);
-        allPlayerStats.push(
-          existing || {
-            map_id: map.id,
-            player_id: player.id,
-            team_id: match.team2_id,
-            kills: 0,
-            assists: 0,
-            deaths: 0,
-            player,
-          }
-        );
-      });
-
-      return {
-        ...map,
-        player_stats: allPlayerStats,
-      };
+    // Inflate player stats to include both teams’ top-5 with defaults where missing
+    const mapsWithStats: MapDraft[] = (match.maps ?? []).map((map) => {
+      const filledStats = ensurePlayerStatsForTeams(
+        map as MapDraft,
+        match.team1_id,
+        match.team2_id
+      );
+      return { ...(map as MapDraft), player_stats: filledStats };
     });
 
     setEditingMaps(mapsWithStats);
     setShowAddForm(true);
 
-    // Scroll to bottom after a brief delay to allow form to render
     setTimeout(() => {
       window.scrollTo({
         top: document.documentElement.scrollHeight,
@@ -399,35 +503,27 @@ export default function AdminMatchesPage() {
     }, 100);
   };
 
-  // Delete map from match
+  // ---------- Delete a map ----------
   const handleDeleteMap = async (mapId: number) => {
-    if (editingMaps.length <= 2) {
-      alert("Cannot delete map. Minimum 2 maps required per match.");
-      return;
-    }
-
-    if (!confirm("Are you sure you want to delete this map?")) {
-      return;
-    }
+    if (editingMaps.length <= 2)
+      return alert("Cannot delete map. Minimum 2 maps required per match.");
+    if (!confirm("Are you sure you want to delete this map?")) return;
 
     try {
       const { error } = await supabase
         .from("match_maps")
         .delete()
         .eq("id", mapId);
-
       if (error) throw error;
-
-      // Remove from local state
-      setEditingMaps(editingMaps.filter((map) => map.id !== mapId));
+      setEditingMaps((cur) => cur.filter((m) => m.id !== mapId));
       alert("Map deleted successfully!");
-    } catch (err) {
-      console.error("Error deleting map:", err);
+    } catch (e) {
+      console.error(e);
       alert("Failed to delete map. Please try again.");
     }
   };
 
-  // Cancel editing
+  // ---------- Cancel ----------
   const cancelEdit = () => {
     setEditingMatch(null);
     setShowAddForm(false);
@@ -450,34 +546,41 @@ export default function AdminMatchesPage() {
     });
   };
 
-  // Filter matches
-  const filteredMatches = matches.filter((match) => {
-    const matchesStatus =
-      statusFilter === "all" || match.status === statusFilter;
-    const matchesSearch =
-      match.team1?.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      match.team2?.name.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesStatus && matchesSearch;
-  });
+  // ---------- Derived/memoized ----------
+  const filteredMatches = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    return matches.filter((m) => {
+      const okStatus = statusFilter === "all" || m.status === statusFilter;
+      const okSearch =
+        !q ||
+        m.team1?.name.toLowerCase().includes(q) ||
+        m.team2?.name.toLowerCase().includes(q);
+      return okStatus && okSearch;
+    });
+  }, [matches, searchQuery, statusFilter]);
 
-  const liveMatches = matches.filter((m) => m.status === "live").length;
-  const scheduledMatches = matches.filter(
-    (m) => m.status === "scheduled"
-  ).length;
-  const completedMatches = matches.filter(
-    (m) => m.status === "completed"
-  ).length;
+  const { liveMatches, scheduledMatches, completedMatches } = useMemo(() => {
+    const live = matches.filter((m) => m.status === "live").length;
+    const sched = matches.filter((m) => m.status === "scheduled").length;
+    const done = matches.filter((m) => m.status === "completed").length;
+    return {
+      liveMatches: live,
+      scheduledMatches: sched,
+      completedMatches: done,
+    };
+  }, [matches]);
 
+  // ---------- Render ----------
   if (loading) {
     return (
-      <div className=" min-h-screen p-8 flex items-center justify-center">
+      <div className="min-h-screen p-8 flex items-center justify-center">
         <div className="text-white text-xl">Loading matches...</div>
       </div>
     );
   }
 
   return (
-    <div className=" min-h-screen p-8">
+    <div className="min-h-screen p-8">
       <div className="max-w-7xl mx-auto space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">
@@ -506,12 +609,10 @@ export default function AdminMatchesPage() {
             </Link>
             <button
               onClick={() => {
-                const newShowState = !showAddForm;
-                setShowAddForm(newShowState);
+                const open = !showAddForm;
+                setShowAddForm(open);
                 if (editingMatch) cancelEdit();
-
-                // Scroll to bottom when opening the form
-                if (newShowState) {
+                if (open) {
                   setTimeout(() => {
                     window.scrollTo({
                       top: document.documentElement.scrollHeight,
@@ -527,14 +628,14 @@ export default function AdminMatchesPage() {
           </div>
         </div>
 
-        {/* Error Message */}
+        {/* Error */}
         {error && (
           <div className="bg-red-900/50 border border-red-700 text-red-200 px-4 py-3 rounded-lg">
             {error}
           </div>
         )}
 
-        {/* Stats Overview */}
+        {/* Stats */}
         <StatsOverview
           totalMatches={matches.length}
           liveMatches={liveMatches}
@@ -542,7 +643,7 @@ export default function AdminMatchesPage() {
           completedMatches={completedMatches}
         />
 
-        {/* Filter Buttons */}
+        {/* Filters */}
         <StatusFilter
           statusFilter={statusFilter}
           liveMatches={liveMatches}
@@ -551,7 +652,7 @@ export default function AdminMatchesPage() {
           onFilterChange={setStatusFilter}
         />
 
-        {/* Matches Table */}
+        {/* Table */}
         <MatchesTable
           matches={filteredMatches}
           statusFilter={statusFilter}
@@ -561,7 +662,7 @@ export default function AdminMatchesPage() {
           onDelete={handleDeleteMatch}
         />
 
-        {/* Schedule Match Form */}
+        {/* Forms */}
         {showAddForm && !editingMatch && (
           <ScheduleMatchForm
             teams={teams}
@@ -572,18 +673,18 @@ export default function AdminMatchesPage() {
           />
         )}
 
-        {/* Edit Match Form */}
         {showAddForm && editingMatch && (
           <EditMatchForm
             teams={teams}
             formData={formData}
-            editingMaps={editingMaps}
+            editingMaps={editingMaps as MatchMap[]}
             isUpdating={isUpdating}
             onFormChange={setFormData}
             onMapsChange={setEditingMaps}
             onSubmit={handleUpdateMatch}
             onCancel={cancelEdit}
             onDeleteMap={handleDeleteMap}
+            onAddMap={handleAddMapToMatch}
           />
         )}
       </div>

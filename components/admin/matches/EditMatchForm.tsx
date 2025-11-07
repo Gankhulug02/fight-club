@@ -1,4 +1,4 @@
-import { Team, Player, MatchMap, MatchFormData } from "./types";
+import { Team, MatchMap, MatchFormData } from "./types";
 
 interface EditMatchFormProps {
   teams: Team[];
@@ -10,6 +10,7 @@ interface EditMatchFormProps {
   onSubmit: () => void;
   onCancel: () => void;
   onDeleteMap: (mapId: number) => void;
+  onAddMap: () => void;
 }
 
 export default function EditMatchForm({
@@ -22,6 +23,7 @@ export default function EditMatchForm({
   onSubmit,
   onCancel,
   onDeleteMap,
+  onAddMap,
 }: EditMatchFormProps) {
   return (
     <div className="bg-gray-900/50 backdrop-blur-sm rounded-2xl border border-gray-800 p-6">
@@ -107,12 +109,12 @@ export default function EditMatchForm({
       {/* Map Results */}
       <div className="bg-gray-800/50 p-4 rounded-lg mb-6 border border-gray-700">
         <h4 className="text-lg font-semibold text-white mb-3">
-          Map Results (Best of {editingMaps.length})
+          Map Results (Best of 3)
         </h4>
         <div className="space-y-4">
           {editingMaps.map((map, index) => (
             <div
-              key={map.id}
+              key={`${map.id}-${index}`}
               className="bg-gray-900/50 p-4 rounded-lg border border-gray-600"
             >
               <div className="flex items-center justify-between mb-3">
@@ -161,6 +163,7 @@ export default function EditMatchForm({
                   <option value="Mirage">Mirage</option>
                   <option value="Nuke">Nuke</option>
                   <option value="Overpass">Overpass</option>
+                  <option value="Null">Null</option>
                 </select>
               </div>
               <div className="grid grid-cols-2 gap-4">
@@ -170,7 +173,10 @@ export default function EditMatchForm({
                       teams.find((t) => t.id === parseInt(formData.team1_id))
                         ?.logo
                     }{" "}
-                    {teams.find((t) => t.id === parseInt(formData.team1_id))?.name}{" "}
+                    {
+                      teams.find((t) => t.id === parseInt(formData.team1_id))
+                        ?.name
+                    }{" "}
                     Score
                   </label>
                   <input
@@ -178,7 +184,8 @@ export default function EditMatchForm({
                     value={map.team1_score}
                     onChange={(e) => {
                       const newMaps = [...editingMaps];
-                      newMaps[index].team1_score = parseInt(e.target.value) || 0;
+                      newMaps[index].team1_score =
+                        parseInt(e.target.value) || 0;
                       onMapsChange(newMaps);
                     }}
                     min="0"
@@ -191,7 +198,10 @@ export default function EditMatchForm({
                       teams.find((t) => t.id === parseInt(formData.team2_id))
                         ?.logo
                     }{" "}
-                    {teams.find((t) => t.id === parseInt(formData.team2_id))?.name}{" "}
+                    {
+                      teams.find((t) => t.id === parseInt(formData.team2_id))
+                        ?.name
+                    }{" "}
                     Score
                   </label>
                   <input
@@ -199,7 +209,8 @@ export default function EditMatchForm({
                     value={map.team2_score}
                     onChange={(e) => {
                       const newMaps = [...editingMaps];
-                      newMaps[index].team2_score = parseInt(e.target.value) || 0;
+                      newMaps[index].team2_score =
+                        parseInt(e.target.value) || 0;
                       onMapsChange(newMaps);
                     }}
                     min="0"
@@ -248,7 +259,8 @@ export default function EditMatchForm({
                               className="bg-gray-800/50 p-2 rounded"
                             >
                               <div className="text-xs text-gray-400 mb-1">
-                                {stat.player?.name || `Player ${stat.player_id}`}
+                                {stat.player?.name ||
+                                  `Player ${stat.player_id}`}
                               </div>
                               <div className="grid grid-cols-3 gap-2 text-xs text-gray-500 mb-1">
                                 <div className="text-center">Kills</div>
@@ -357,7 +369,8 @@ export default function EditMatchForm({
                               className="bg-gray-800/50 p-2 rounded"
                             >
                               <div className="text-xs text-gray-400 mb-1">
-                                {stat.player?.name || `Player ${stat.player_id}`}
+                                {stat.player?.name ||
+                                  `Player ${stat.player_id}`}
                               </div>
                               <div className="grid grid-cols-3 gap-2 text-xs text-gray-500 mb-1">
                                 <div className="text-center">Kills</div>
@@ -438,6 +451,12 @@ export default function EditMatchForm({
               </div>
             </div>
           ))}
+          <button
+            onClick={() => onAddMap()}
+            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-colors"
+          >
+            Add map
+          </button>
         </div>
       </div>
 
@@ -502,4 +521,3 @@ export default function EditMatchForm({
     </div>
   );
 }
-
