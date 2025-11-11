@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { memo } from "react";
 import { Team } from "./types";
+import { TeamLogo } from "../shared/TeamLogo";
 
 interface TeamRowProps {
   team: Team;
@@ -26,7 +27,7 @@ function TeamRow({ team, rank }: TeamRowProps) {
           href={`/teams/${team.id}`}
           className="flex items-center space-x-3 hover:opacity-80 transition-opacity"
         >
-          <div className="text-3xl">{team.logo}</div>
+          <TeamLogo logo={team.logo} />
           <div>
             <div className="text-lg font-semibold text-white hover:text-blue-400 transition-colors">
               {team.name}
@@ -72,4 +73,3 @@ function TeamRow({ team, rank }: TeamRowProps) {
 }
 
 export default memo(TeamRow);
-

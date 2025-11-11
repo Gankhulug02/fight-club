@@ -3,6 +3,7 @@ import Link from "next/link";
 import { MatchWithTeams, MatchMap, MapPlayerStats } from "./types";
 import MatchMapsList from "./MatchMapsList";
 import { formatDate, getRelativeTime } from "./utils";
+import { TeamLogo } from "../shared/TeamLogo";
 
 interface MatchCardProps {
   match: MatchWithTeams;
@@ -93,7 +94,7 @@ function MatchCard({
                     team1Won ? "animate-bounce" : ""
                   }`}
                 >
-                  {match.team1?.logo || "❓"}
+                  <TeamLogo logo={match.team1?.logo || "❓"} />
                 </div>
               </Link>
               <div className="flex-1">
@@ -151,7 +152,7 @@ function MatchCard({
                     team2Won ? "animate-bounce" : ""
                   }`}
                 >
-                  {match.team2?.logo || "❓"}
+                  <TeamLogo logo={match.team2?.logo || "❓"} />
                 </div>
               </Link>
               <div className="flex-1 text-right">
@@ -201,4 +202,3 @@ function MatchCard({
 }
 
 export default memo(MatchCard);
-

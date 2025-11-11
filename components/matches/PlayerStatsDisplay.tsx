@@ -1,9 +1,10 @@
 import { MapPlayerStats } from "./types";
+import { TeamLogo } from "../shared/TeamLogo";
 
 interface PlayerStatsDisplayProps {
   stats: MapPlayerStats[];
   teamId: number;
-  teamLogo?: string;
+  teamLogo: string;
   teamName?: string;
 }
 
@@ -20,7 +21,7 @@ export default function PlayerStatsDisplay({
   return (
     <div>
       <div className="text-xs text-gray-400 mb-2 flex items-center space-x-2">
-        <span>{teamLogo}</span>
+        <TeamLogo logo={teamLogo} />
         <span>{teamName}</span>
       </div>
       <div className="space-y-2">
@@ -63,4 +64,3 @@ export default function PlayerStatsDisplay({
     </div>
   );
 }
-

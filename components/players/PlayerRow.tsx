@@ -2,6 +2,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { memo } from "react";
 import { PlayerStats } from "./types";
+import { TeamLogo } from "../shared/TeamLogo";
 
 interface PlayerRowProps {
   playerStats: PlayerStats;
@@ -51,10 +52,10 @@ function PlayerRow({ playerStats: ps, rank }: PlayerRowProps) {
             href={`/teams/${ps.team.id}`}
             className="flex items-center space-x-2 hover:opacity-80 transition-opacity"
           >
-            <span className="text-2xl">{ps.team.logo}</span>
-            <span className="text-white hover:text-blue-400 transition-colors">
+            <TeamLogo logo={ps.team.logo} />
+            {/* <span className="text-white hover:text-blue-400 transition-colors">
               {ps.team.name}
-            </span>
+            </span> */}
           </Link>
         ) : (
           <span className="text-gray-500">No team</span>

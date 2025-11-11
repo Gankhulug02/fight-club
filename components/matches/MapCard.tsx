@@ -1,6 +1,7 @@
 import { memo } from "react";
 import { MatchMap, MapPlayerStats, Team } from "./types";
 import PlayerStatsDisplay from "./PlayerStatsDisplay";
+import { TeamLogo } from "../shared/TeamLogo";
 
 interface MapCardProps {
   map: MatchMap;
@@ -58,7 +59,7 @@ function MapCard({
             </div>
             {mapWinnerTeam && (
               <div className="text-sm text-green-400 flex items-center space-x-1">
-                <span>{mapWinnerTeam.logo}</span>
+                <TeamLogo logo={mapWinnerTeam.logo} />
                 <span>{mapWinnerTeam.name}</span>
               </div>
             )}
@@ -87,16 +88,16 @@ function MapCard({
               <PlayerStatsDisplay
                 stats={playerStats}
                 teamId={team1Id}
-                teamLogo={team1?.logo}
-                teamName={team1?.name}
+                teamLogo={team1?.logo || ""}
+                teamName={team1?.name || ""}
               />
 
               {/* Team 2 Players */}
               <PlayerStatsDisplay
                 stats={playerStats}
                 teamId={team2Id}
-                teamLogo={team2?.logo}
-                teamName={team2?.name}
+                teamLogo={team2?.logo || ""}
+                teamName={team2?.name || ""}
               />
             </div>
           )}
@@ -107,4 +108,3 @@ function MapCard({
 }
 
 export default memo(MapCard);
-

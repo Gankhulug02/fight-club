@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
+import { TeamLogo, isImageUrl } from "@/components/shared/TeamLogo";
 
 interface Team {
   id: number;
@@ -31,6 +32,9 @@ export default function AdminTeamsPage() {
     name: "",
     logo: "",
   });
+  const [uploading, setUploading] = useState(false);
+  const [logoPreview, setLogoPreview] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Fetch teams from Supabase
   useEffect(() => {
@@ -107,6 +111,142 @@ export default function AdminTeamsPage() {
     }
   };
 
+  // Upload image to Supabase storage
+  const uploadImage = async (file: File): Promise<string | null> => {
+    try {
+      setUploading(true);
+
+      // Create a unique filename
+      const fileExt = file.name.split(".").pop();
+      const fileName = `${Date.now()}_${Math.random()
+        .toString(36)
+        .substring(7)}.${fileExt}`;
+      const filePath = fileName; // Path is relative to bucket root
+
+      // Upload to Supabase storage
+      const { error: uploadError, data } = await supabase.storage
+        .from("team-logos")
+        .upload(filePath, file, {
+          cacheControl: "3600",
+          upsert: false,
+        });
+
+      if (uploadError) {
+        // If bucket doesn't exist, try to create it
+        if (uploadError.message.includes("Bucket not found")) {
+          // Create the bucket (this might require admin privileges)
+          const { error: createError } = await supabase.storage.createBucket(
+            "team-logos",
+            {
+              public: true,
+              allowedMimeTypes: [
+                "image/jpeg",
+                "image/png",
+                "image/gif",
+                "image/webp",
+              ],
+            }
+          );
+
+          if (createError) {
+            console.error("Error creating bucket:", createError);
+            throw new Error(
+              "Storage bucket not available. Please create 'team-logos' bucket in Supabase Storage."
+            );
+          }
+
+          // Retry upload after creating bucket
+          const { error: retryError, data: retryData } = await supabase.storage
+            .from("team-logos")
+            .upload(filePath, file, {
+              cacheControl: "3600",
+              upsert: false,
+            });
+
+          if (retryError) throw retryError;
+
+          // Get public URL
+          const { data: urlData } = supabase.storage
+            .from("team-logos")
+            .getPublicUrl(filePath);
+
+          return urlData.publicUrl;
+        }
+        throw uploadError;
+      }
+
+      // Get public URL
+      const { data: urlData } = supabase.storage
+        .from("team-logos")
+        .getPublicUrl(filePath);
+
+      return urlData.publicUrl;
+    } catch (err: unknown) {
+      console.error("Error uploading image:", err);
+      // Provide more helpful error messages
+      if (
+        err instanceof Error &&
+        err.message.includes("row-level security policy")
+      ) {
+        throw new Error(
+          "Storage RLS policy error. Please run the SQL script in 'supabase-storage-team-logos-policies.sql' in your Supabase SQL Editor."
+        );
+      }
+      throw new Error("Failed to upload image. Please try again.");
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  // Handle file selection
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    if (!file.type.startsWith("image/")) {
+      alert("Please select an image file");
+      return;
+    }
+
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      alert("Image size must be less than 5MB");
+      return;
+    }
+
+    try {
+      // Create preview
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setLogoPreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+
+      // Upload image
+      const imageUrl = await uploadImage(file);
+      if (imageUrl) {
+        setFormData({ ...formData, logo: imageUrl });
+      }
+    } catch (err: unknown) {
+      console.error("Error handling file:", err);
+      if (
+        err instanceof Error &&
+        err.message.includes("row-level security policy")
+      ) {
+        alert(
+          "Storage RLS policy error. Please run the SQL script in 'supabase-storage-team-logos-policies.sql' in your Supabase SQL Editor to set up the required policies."
+        );
+      } else {
+        alert(
+          `Failed to upload image: ${
+            err instanceof Error ? err.message : "Unknown error"
+          }`
+        );
+      }
+    }
+  };
+
   // Add new team
   const handleAddTeam = async () => {
     if (!formData.name.trim()) {
@@ -132,6 +272,10 @@ export default function AdminTeamsPage() {
         name: "",
         logo: "",
       });
+      setLogoPreview(null);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
       setShowAddForm(false);
       await fetchTeams();
       alert("Team added successfully! Add matches to generate statistics.");
@@ -150,7 +294,7 @@ export default function AdminTeamsPage() {
         .from("teams")
         .update({
           name: formData.name,
-          logo: formData.logo,
+          logo: formData.logo || "⚡",
         })
         .eq("id", editingTeam.id);
 
@@ -162,6 +306,10 @@ export default function AdminTeamsPage() {
         name: "",
         logo: "",
       });
+      setLogoPreview(null);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
       await fetchTeams();
       alert("Team updated successfully!");
     } catch (err) {
@@ -196,6 +344,12 @@ export default function AdminTeamsPage() {
       name: team.name,
       logo: team.logo,
     });
+    // Set preview if it's an image URL
+    if (isImageUrl(team.logo)) {
+      setLogoPreview(team.logo);
+    } else {
+      setLogoPreview(null);
+    }
     setShowAddForm(true);
   };
 
@@ -207,6 +361,10 @@ export default function AdminTeamsPage() {
       name: "",
       logo: "",
     });
+    setLogoPreview(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
   };
 
   // Filter teams based on search
@@ -345,7 +503,7 @@ export default function AdminTeamsPage() {
                       >
                         <td className="px-6 py-4">
                           <div className="flex items-center space-x-3">
-                            <span className="text-3xl">{team.logo}</span>
+                            <TeamLogo logo={team.logo} />
                             <div>
                               <div className="text-white font-semibold">
                                 {team.name}
@@ -458,18 +616,94 @@ export default function AdminTeamsPage() {
               </div>
               <div>
                 <label className="block text-gray-400 text-sm mb-2">
-                  Logo Emoji
+                  Team Logo
                 </label>
-                <input
-                  type="text"
-                  placeholder="🔥"
-                  value={formData.logo}
-                  onChange={(e) =>
-                    setFormData({ ...formData, logo: e.target.value })
-                  }
-                  maxLength={2}
-                  className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-blue-500"
-                />
+                <div className="space-y-3">
+                  {/* Logo Preview */}
+                  {(logoPreview ||
+                    (formData.logo && !isImageUrl(formData.logo))) && (
+                    <div className="flex items-center space-x-3 p-3 bg-gray-800/50 rounded-lg border border-gray-700">
+                      <div className="text-4xl">
+                        {logoPreview ? (
+                          <img
+                            src={logoPreview}
+                            alt="Logo preview"
+                            className="w-12 h-12 object-contain rounded"
+                          />
+                        ) : (
+                          <span>{formData.logo || "⚡"}</span>
+                        )}
+                      </div>
+                      <div className="flex-1">
+                        <div className="text-white text-sm font-medium">
+                          Current Logo
+                        </div>
+                        {isImageUrl(formData.logo) && (
+                          <div className="text-gray-400 text-xs">
+                            Image uploaded
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* File Upload */}
+                  <div>
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*"
+                      onChange={handleFileChange}
+                      disabled={uploading}
+                      className="hidden"
+                      id="logo-upload"
+                    />
+                    <label
+                      htmlFor="logo-upload"
+                      className={`block w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-center cursor-pointer hover:bg-gray-700 transition-colors ${
+                        uploading ? "opacity-50 cursor-not-allowed" : ""
+                      }`}
+                    >
+                      {uploading ? "Uploading..." : "Upload Image"}
+                    </label>
+                    <p className="text-gray-500 text-xs mt-1">
+                      Max 5MB. Supports JPG, PNG, GIF, WebP
+                    </p>
+                  </div>
+
+                  {/* Or use emoji */}
+                  <div className="relative">
+                    <div className="absolute inset-0 flex items-center">
+                      <div className="w-full border-t border-gray-700"></div>
+                    </div>
+                    <div className="relative flex justify-center text-sm">
+                      <span className="px-2 bg-gray-900/50 text-gray-500">
+                        OR
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Emoji Input */}
+                  <input
+                    type="text"
+                    placeholder="🔥 (or leave empty for default)"
+                    value={isImageUrl(formData.logo) ? "" : formData.logo}
+                    onChange={(e) => {
+                      if (!isImageUrl(e.target.value)) {
+                        setFormData({ ...formData, logo: e.target.value });
+                        setLogoPreview(null);
+                        if (fileInputRef.current) {
+                          fileInputRef.current.value = "";
+                        }
+                      }
+                    }}
+                    maxLength={2}
+                    className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-blue-500"
+                  />
+                  <p className="text-gray-500 text-xs">
+                    Enter an emoji (max 2 characters)
+                  </p>
+                </div>
               </div>
             </div>
             <div className="mt-4 flex space-x-3">

@@ -131,8 +131,6 @@ export default function AdminMatchesPage() {
             .map((s) => ({ ...s, player: playersById.get(s.player_id) })),
         }));
 
-        console.log("mapsWithStats", mapsWithStats);
-
         const matchesWithTeams: MatchWithTeams[] = (matchesData ?? []).map(
           (m) => ({
             ...m,

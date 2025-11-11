@@ -3,6 +3,7 @@
 import { useState, useEffect, use } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
+import { TeamLogo } from "@/components/shared/TeamLogo";
 
 interface Team {
   id: number;
@@ -330,7 +331,7 @@ export default function TeamDetailPage({
         <div className="bg-gray-900/50 backdrop-blur-sm rounded-2xl shadow-2xl overflow-hidden border border-gray-800 p-8">
           <div className="flex flex-col md:flex-row items-center md:items-start justify-between gap-6">
             <div className="flex items-center space-x-6">
-              <div className="text-7xl">{team.logo}</div>
+              <TeamLogo logo={team.logo} />
               <div>
                 <h1 className="text-4xl font-bold text-white mb-2">
                   {team.name}

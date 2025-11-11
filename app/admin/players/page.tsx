@@ -410,7 +410,7 @@ export default function AdminPlayersPage() {
                         <td className="px-6 py-4">
                           {ps.team ? (
                             <div className="flex items-center space-x-2">
-                              <span className="text-xl">{ps.team.logo}</span>
+                              {/* <span className="text-xl">{ps.team.logo}</span> */}
                               <span className="text-white">{ps.team.name}</span>
                             </div>
                           ) : (
