@@ -1,4 +1,5 @@
 import { Team, MatchMap, MatchFormData } from "./types";
+import { TeamLogo } from "@/components/shared/TeamLogo";
 
 interface EditMatchFormProps {
   teams: Team[];
@@ -49,7 +50,7 @@ export default function EditMatchForm({
               <option value="">Select team</option>
               {teams.map((team) => (
                 <option key={team.id} value={team.id}>
-                  {team.logo} {team.name}
+                  {team.name}
                 </option>
               ))}
             </select>
@@ -68,7 +69,7 @@ export default function EditMatchForm({
               <option value="">Select team</option>
               {teams.map((team) => (
                 <option key={team.id} value={team.id}>
-                  {team.logo} {team.name}
+                  {team.name}
                 </option>
               ))}
             </select>
@@ -248,7 +249,6 @@ export default function EditMatchForm({
                             (stat) =>
                               stat.team_id === parseInt(formData.team1_id)
                           )
-                          ?.sort((a, b) => b.kills - a.kills)
                           .map((stat, statIndex) => {
                             const mapIndex = editingMaps.findIndex(
                               (m) => m.id === map.id
@@ -364,7 +364,6 @@ export default function EditMatchForm({
                             (stat) =>
                               stat.team_id === parseInt(formData.team2_id)
                           )
-                          ?.sort((a, b) => b.kills - a.kills)
                           .map((stat, statIndex) => {
                             const mapIndex = editingMaps.findIndex(
                               (m) => m.id === map.id

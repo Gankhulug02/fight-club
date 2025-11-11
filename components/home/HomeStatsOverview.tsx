@@ -1,4 +1,5 @@
 import { Team } from "./types";
+import { TeamLogo } from "../shared/TeamLogo";
 
 interface HomeStatsOverviewProps {
   teams: Team[];
@@ -10,10 +11,8 @@ export default function HomeStatsOverview({
   leadingTeam,
 }: HomeStatsOverviewProps) {
   const totalMatches =
-    teams.reduce(
-      (sum, team) => sum + team.matches_won + team.matches_lost,
-      0
-    ) / 2;
+    teams.reduce((sum, team) => sum + team.matches_won + team.matches_lost, 0) /
+    2;
 
   const totalRounds =
     teams.reduce((sum, team) => sum + team.rounds_won + team.rounds_lost, 0) /
@@ -38,7 +37,7 @@ export default function HomeStatsOverview({
         <div className="text-2xl font-bold text-white flex items-center justify-center gap-2">
           {leadingTeam ? (
             <>
-              <span>{leadingTeam.logo}</span>
+              <TeamLogo logo={leadingTeam.logo} />
               <span>{leadingTeam.name}</span>
             </>
           ) : (
@@ -49,4 +48,3 @@ export default function HomeStatsOverview({
     </div>
   );
 }
-

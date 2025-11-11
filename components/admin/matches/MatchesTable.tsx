@@ -1,3 +1,4 @@
+import { TeamLogo } from "@/components/shared/TeamLogo";
 import { MatchWithTeams } from "./types";
 
 interface MatchesTableProps {
@@ -89,14 +90,14 @@ export default function MatchesTable({
                   <td className="px-6 py-4">
                     <div className="space-y-2">
                       <div className="flex items-center space-x-2">
-                        <span className="text-xl">{match.team1?.logo}</span>
+                        <TeamLogo logo={match.team1?.logo || ""} />
                         <span className="text-white font-semibold">
                           {match.team1?.name || "Unknown Team"}
                         </span>
                       </div>
                       <div className="text-gray-500 text-sm">vs</div>
                       <div className="flex items-center space-x-2">
-                        <span className="text-xl">{match.team2?.logo}</span>
+                        <TeamLogo logo={match.team2?.logo || ""} />
                         <span className="text-white font-semibold">
                           {match.team2?.name || "Unknown Team"}
                         </span>
