@@ -17,7 +17,7 @@ export default function BuyMeACoffee() {
       {/* Buy Me a Coffee Button */}
       <button
         onClick={() => setIsModalOpen(true)}
-        className="flex items-center space-x-2 bg-yellow-500 hover:bg-yellow-600 text-black px-4 py-2 rounded-lg transition-all duration-200 font-medium text-sm shadow-lg hover:shadow-yellow-500/50"
+        className="flex items-center justify-center w-full space-x-2 bg-yellow-500 hover:bg-yellow-600 text-black px-4 py-2 rounded-lg transition-all duration-200 font-medium text-sm shadow-lg hover:shadow-yellow-500/50"
       >
         <span className="text-lg">☕</span>
         <span>Buy Me a Coffee</span>
