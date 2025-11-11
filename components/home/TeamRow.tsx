@@ -6,9 +6,10 @@ import { TeamLogo } from "../shared/TeamLogo";
 interface TeamRowProps {
   team: Team;
   rank: number;
+  isEliminated?: boolean;
 }
 
-function TeamRow({ team, rank }: TeamRowProps) {
+function TeamRow({ team, rank, isEliminated = false }: TeamRowProps) {
   const roundDiff = team.rounds_won - team.rounds_lost;
   const isPositiveDiff = roundDiff > 0;
   const totalMatches = team.matches_won + team.matches_lost;
@@ -18,9 +19,31 @@ function TeamRow({ team, rank }: TeamRowProps) {
       : "0";
 
   return (
-    <tr className="hover:bg-gray-800/30 transition-colors duration-150">
+    <tr
+      className={`transition-colors duration-150 ${
+        isEliminated
+          ? "bg-red-950/30 border-l-4 border-l-red-500 hover:bg-red-900/40"
+          : "hover:bg-gray-800/30"
+      }`}
+    >
       <td className="px-6 py-4 whitespace-nowrap">
-        <div className="text-lg font-bold text-white">{rank + 1}</div>
+        <div className="flex items-center space-x-2">
+          <div
+            className={`text-lg font-bold ${
+              isEliminated ? "text-red-400" : "text-white"
+            }`}
+          >
+            {rank + 1}
+          </div>
+          {isEliminated && (
+            <span
+              className="text-red-500 text-sm"
+              title="5th team will be eliminated"
+            >
+              ⚠️
+            </span>
+          )}
+        </div>
       </td>
       <td className="px-6 py-4 whitespace-nowrap">
         <Link

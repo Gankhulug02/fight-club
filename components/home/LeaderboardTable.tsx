@@ -38,16 +38,18 @@ export default function LeaderboardTable({ teams }: LeaderboardTableProps) {
           <tbody className="divide-y divide-gray-800">
             {teams.length === 0 ? (
               <tr>
-                <td
-                  colSpan={7}
-                  className="px-6 py-8 text-center text-gray-400"
-                >
+                <td colSpan={7} className="px-6 py-8 text-center text-gray-400">
                   No teams yet. Add teams and matches from the admin panel!
                 </td>
               </tr>
             ) : (
               teams.map((team, index) => (
-                <TeamRow key={team.id} team={team} rank={index} />
+                <TeamRow
+                  key={team.id}
+                  team={team}
+                  rank={index}
+                  isEliminated={index === 4}
+                />
               ))
             )}
           </tbody>
@@ -56,4 +58,3 @@ export default function LeaderboardTable({ teams }: LeaderboardTableProps) {
     </div>
   );
 }
-
