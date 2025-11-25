@@ -105,9 +105,14 @@ export default function Home() {
     }
   };
 
-  // Memoized sorted teams by round difference (descending)
+  // Memoized sorted teams by matches won first, then round difference (descending)
   const sortedTeams = useMemo(() => {
     return [...teams].sort((a, b) => {
+      // First sort by matches won (descending)
+      if (b.matches_won !== a.matches_won) {
+        return b.matches_won - a.matches_won;
+      }
+      // Then sort by round difference (descending)
       const diffA = a.rounds_won - a.rounds_lost;
       const diffB = b.rounds_won - b.rounds_lost;
       return diffB - diffA;
